@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.git/
+.gitignore
+outputs/
+api/data/fashion_data.db
