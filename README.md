@@ -4,9 +4,9 @@ End-to-end MLOps system for clothing image classification using the Fashion MNIS
 
 **Video Demo:** [YouTube Link](https://youtu.be/YOUR_VIDEO_ID)
 
-**GitHub:** https://github.com/Chol1000/summative-MLOP
+**GitHub:** https://github.com/Chol1000/fashion-mnist-mlops
 
-**Live URL:** `http://YOUR_DEPLOYED_URL:8501`
+**Live URL:** https://fashion-mnist-frontend.onrender.com
 
 ---
 
