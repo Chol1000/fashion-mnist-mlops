@@ -20,9 +20,7 @@ notebook/.ipynb_checkpoints/
 
 # Data files tracked via Git LFS (see .gitattributes)
 
-# Generated figures (reproduced by running the notebook)
-outputs/figures/*
-!outputs/figures/.gitkeep
+# outputs/figures/ — committed (EDA and training visualisations)
 
 # Locust HTML reports (screenshots and CSVs committed instead)
 locust/results/*.html
