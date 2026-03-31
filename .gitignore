@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+*.egg-info/
+dist/
+build/
+.env
+
+# Virtual environment
+venv/
+
+# Database (generated at runtime)
+api/data/*.db
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+notebook/.ipynb_checkpoints/
+
+# Data files tracked via Git LFS (see .gitattributes)
+
+# Generated figures (reproduced by running the notebook)
+outputs/figures/*
+!outputs/figures/.gitkeep
+
+# Locust HTML reports (screenshots and CSVs committed instead)
+locust/results/*.html
