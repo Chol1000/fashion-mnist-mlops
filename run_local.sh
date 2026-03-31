@@ -33,10 +33,10 @@ pip install --quiet \
     "matplotlib==3.9.2" "seaborn==0.13.2"
 
 # ── 3. Check model ────────────────────────────────────────────────────────────
-MODEL_PATH="$ROOT/models/fashion_model.keras"
+MODEL_PATH="$ROOT/models/fashion_model.h5"
 if [ ! -f "$MODEL_PATH" ]; then
     echo ""
-    echo "  WARNING: No trained model found at models/fashion_model.keras"
+    echo "  WARNING: No trained model found at models/fashion_model.h5"
     echo "  Train the model first (from the project root):"
     echo "    source venv/bin/activate"
     echo "    python -m src.train"
