@@ -16,10 +16,11 @@ COPY api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
-# Copy source code
-COPY src/   /app/src/
-COPY api/   /app/api/
+# Copy source code and data
+COPY src/    /app/src/
+COPY api/    /app/api/
 COPY models/ /app/models/
+COPY data/   /data/
 
 # Create data directory for SQLite
 RUN mkdir -p /app/api/data
