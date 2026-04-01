@@ -101,6 +101,10 @@ _start_time = time.time()
 @app.on_event("startup")
 def startup():
     db.init_db()
+    try:
+        predictor._get_model()  # Load model into memory at startup
+    except Exception as exc:
+        log.warning("Model pre-load failed: %s", exc)
     log.info("API ready — model loaded: %s", predictor.model_ready)
 
 
