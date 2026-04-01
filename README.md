@@ -15,7 +15,11 @@ End-to-end MLOps system for clothing image classification using the Fashion MNIS
 
 **GitHub:** https://github.com/Chol1000/fashion-mnist-mlops
 
-**Live URL:** https://fashion-mnist-frontend.onrender.com
+**Live Frontend:** https://fashion-mnist-frontend.onrender.com
+
+**Live API:** https://cholatemgiet-fashion-mnist-api.hf.space
+
+**API Docs:** https://cholatemgiet-fashion-mnist-api.hf.space/docs
 
 ---
 
@@ -241,6 +245,8 @@ The most frequently confused classes are Shirt, T-shirt/top, and Coat due to ove
 3. Uploaded samples are stored in SQLite for traceability
 4. Click **Start Retraining** — the model is fine-tuned with Adam lr=1e-4
 5. Updated metrics are displayed in the dashboard and logged to the database
+
+> **Sample data for testing:** A ready-to-use 100-row sample CSV is available at `data/sample_retrain.csv`. Download it and upload it directly in the Upload & Retrain tab to test the full retraining pipeline.
 
 ---
 
