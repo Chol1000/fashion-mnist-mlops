@@ -1,3 +1,12 @@
+---
+title: Fashion MNIST API
+emoji: 👔
+colorFrom: blue
+colorTo: purple
+sdk: docker
+pinned: false
+---
+
 # Fashion MNIST MLOps Pipeline
 
 End-to-end MLOps system for clothing image classification using the Fashion MNIST dataset.
