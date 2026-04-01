@@ -246,7 +246,18 @@ The most frequently confused classes are Shirt, T-shirt/top, and Coat due to ove
 4. Click **Start Retraining** — the model is fine-tuned with Adam lr=1e-4
 5. Updated metrics are displayed in the dashboard and logged to the database
 
-> **Sample data for testing:** A ready-to-use 100-row sample CSV is available at `data/sample_retrain.csv`. Download it and upload it directly in the Upload & Retrain tab to test the full retraining pipeline.
+### Testing Retraining with Sample Data
+
+A ready-to-use sample file is included at `data/sample_retrain.csv`.
+
+- **What it is:** 100 randomly selected rows from the Fashion MNIST test set
+- **Format:** CSV with 785 columns — `label` (0–9) followed by `pixel1` through `pixel784` (greyscale pixel values 0–255)
+- **How to use it:**
+  1. Download `data/sample_retrain.csv` from the GitHub repo
+  2. Open the live dashboard → **Upload & Retrain** tab
+  3. Upload the file — it will be validated and stored in the database
+  4. Click **Start Retraining** to fine-tune the model on these 100 samples
+  5. Watch the live epoch progress and see updated metrics once training completes
 
 ---
 
