@@ -11,6 +11,7 @@ Tabs:
 
 from __future__ import annotations
 
+import gc
 import io
 import os
 import time
@@ -20,7 +21,6 @@ import pandas as pd
 import requests
 import streamlit as st
 import matplotlib.pyplot as plt
-import seaborn as sns
 from PIL import Image
 
 # ── Page config ───────────────────────────────────────────────────────────────
@@ -443,7 +443,7 @@ def plot_probs(probs: dict, confidence: float = 1.0):
     plt.tight_layout()
     _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
     st.image(_buf, use_column_width="always")
-    plt.close()
+    plt.close("all"); gc.collect()
 
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
@@ -1013,7 +1013,7 @@ with tabs[1]:
                     fig.savefig(buf, format="png", dpi=100, bbox_inches="tight")
                     buf.seek(0)
                     chart_slot.image(buf, use_column_width="always")
-                    plt.close(fig)
+                    plt.close("all"); gc.collect()
 
                 if not status["running"]:
                     progress_bar.progress(100)
@@ -1065,7 +1065,7 @@ with tabs[1]:
                         fig2.savefig(buf2, format="png", dpi=100, bbox_inches="tight")
                         buf2.seek(0)
                         st.image(buf2, use_column_width="always")
-                        plt.close(fig2)
+                        plt.close("all"); gc.collect()
 
     st.divider()
 
@@ -1122,7 +1122,7 @@ with tabs[2]:
         classes = insights["classes"]
         names   = [v["name"]  for v in classes.values()]
         counts  = [v["count"] for v in classes.values()]
-        palette = sns.color_palette("Blues_d", len(names))
+        palette = plt.cm.Blues(np.linspace(0.4, 0.9, len(names)))
 
         fig, ax = plt.subplots(figsize=(11, 4))
         fig.patch.set_facecolor("white")
@@ -1145,7 +1145,7 @@ with tabs[2]:
         plt.tight_layout()
         _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
         st.image(_buf, use_column_width="always")
-        plt.close()
+        plt.close("all"); gc.collect()
 
     st.divider()
 
@@ -1318,7 +1318,7 @@ with tabs[3]:
                 plt.tight_layout()
                 _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
                 st.image(_buf, use_column_width="always")
-                plt.close()
+                plt.close("all"); gc.collect()
 
             # ── Training history ───────────────────────────────────────────────
             if metrics.get("history"):
@@ -1356,7 +1356,7 @@ with tabs[3]:
                 plt.tight_layout()
                 _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
                 st.image(_buf, use_column_width="always")
-                plt.close()
+                plt.close("all"); gc.collect()
     else:
         st.info("No metrics found. Run the training notebook first.")
 
