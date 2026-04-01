@@ -1,32 +1,35 @@
 FROM python:3.11-slim
 
 LABEL maintainer="Fashion MNIST MLOps"
-LABEL description="Streamlit frontend for Fashion MNIST MLOps dashboard"
+LABEL description="FastAPI backend for Fashion MNIST classification"
 
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
+        gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY frontend/requirements.txt /app/requirements.txt
+COPY api/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
-COPY frontend/          /app/
-COPY outputs/figures/  /app/figures/
-COPY data/test/        /data/test/
+COPY src/    /app/src/
+COPY api/    /app/api/
+COPY models/ /app/models/
+COPY data/   /data/
 
-ENV API_URL=https://cholatemgiet-fashion-mnist-api.hf.space
-ENV STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
+RUN mkdir -p /app/api/data
+
+ENV TF_CPP_MIN_LOG_LEVEL=3
+ENV CUDA_VISIBLE_DEVICES=""
+ENV TF_NUM_INTRAOP_THREADS=2
+ENV TF_NUM_INTEROP_THREADS=2
+ENV OMP_NUM_THREADS=2
 
 EXPOSE 7860
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:7860/_stcore/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
 
-CMD ["streamlit", "run", "app.py", \
-     "--server.port=7860", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true", \
-     "--browser.gatherUsageStats=false"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1"]
