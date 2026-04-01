@@ -20,13 +20,13 @@ pinned: false
 ![Docker](https://img.shields.io/badge/Docker-Containerised-blue?logo=docker)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Deployed-yellow?logo=huggingface)
 
-| Resource | Link |
-|----------|------|
-| Video Demo | [YouTube](https://youtu.be/YOUR_VIDEO_ID) |
-| Live Dashboard | https://cholatemgiet-fashion-mnist-frontend.hf.space |
-| Live API | https://cholatemgiet-fashion-mnist-api.hf.space |
-| API Docs (Swagger) | https://cholatemgiet-fashion-mnist-api.hf.space/docs |
-| GitHub Repository | https://github.com/Chol1000/fashion-mnist-mlops |
+| Resource | Description | Link |
+|----------|-------------|------|
+| Video Demo | Full walkthrough — prediction, retraining, live deployment (camera on) | [Watch on YouTube](https://youtu.be/Nw2GPJmoh20) |
+| Live Dashboard (Public) | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://cholatemgiet-fashion-mnist-frontend.hf.space) |
+| Live API (Public) | FastAPI backend — hosted on Hugging Face Spaces (16 GB RAM, zero cost) | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space) |
+| Interactive API Docs | Swagger UI — test all endpoints directly in the browser | [Open Swagger](https://cholatemgiet-fashion-mnist-api.hf.space/docs) |
+| GitHub Repository | Full source code — notebook, API, frontend, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
 
 </div>
 
