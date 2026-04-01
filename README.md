@@ -352,3 +352,45 @@ locust -f locust/locustfile.py --host http://localhost:80 \
 **Failures — zero across all runs**
 
 ![Locust Failures](locust/results/failures.png)
+
+---
+
+## Dataset
+
+**Fashion MNIST** is a dataset of Zalando's article images — a drop-in replacement for the original MNIST handwritten digits dataset.
+
+| Property | Detail |
+|----------|--------|
+| Source | Zalando Research |
+| Classes | 10 clothing categories |
+| Training samples | 60,000 |
+| Test samples | 10,000 |
+| Image size | 28 × 28 greyscale |
+| Format | CSV (pixel values 0–255) |
+
+**Class labels:**
+
+| Label | Class |
+|-------|-------|
+| 0 | T-shirt/top |
+| 1 | Trouser |
+| 2 | Pullover |
+| 3 | Dress |
+| 4 | Coat |
+| 5 | Sandal |
+| 6 | Shirt |
+| 7 | Sneaker |
+| 8 | Bag |
+| 9 | Ankle boot |
+
+**Download:** [Fashion MNIST on Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
+
+---
+
+## References
+
+- **Dataset:** Xiao, H., Rasul, K., & Vollgraf, R. (2017). *Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms.* Zalando Research. [GitHub](https://github.com/zalandoresearch/fashion-mnist) · [Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
+- **Model:** Sandler, M., et al. (2018). *MobileNetV2: Inverted Residuals and Linear Bottlenecks.* CVPR 2018. [Paper](https://arxiv.org/abs/1801.04381)
+- **Framework:** Abadi, M., et al. (2015). *TensorFlow: Large-Scale Machine Learning on Heterogeneous Systems.* [tensorflow.org](https://www.tensorflow.org)
+- **Load Testing:** [Locust — An open source load testing tool](https://locust.io)
+- **Deployment:** [Hugging Face Spaces](https://huggingface.co/spaces)
