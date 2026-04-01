@@ -487,10 +487,6 @@ with st.sidebar:
             <span class="sb-status-key">Uptime</span>
             <span class="sb-badge slate">{int(uptime)}s</span>
         </div>
-        <div class="sb-status-row">
-            <span class="sb-status-key">DB Samples</span>
-            <span class="sb-badge slate">{db_samples}</span>
-        </div>
         """, unsafe_allow_html=True)
 
     with st.expander("Model Performance", expanded=True):
