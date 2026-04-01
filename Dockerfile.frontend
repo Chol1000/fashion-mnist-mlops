@@ -13,8 +13,8 @@ COPY frontend/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \
  && pip install --no-cache-dir -r requirements.txt
 
-COPY frontend/ /app/
-COPY data/     /data/
+COPY frontend/          /app/
+COPY outputs/figures/  /app/figures/
 
 EXPOSE 8501
 

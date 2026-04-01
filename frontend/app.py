@@ -1116,55 +1116,18 @@ with tabs[2]:
         "Trousers and Bags skew dark; Shirts and Coats show broader, lighter distributions. "
         "High overlap between Pullover and Coat explains the model's most common confusion pair."
     )
-    if test_df is not None:
-        with st.spinner("Rendering pixel intensity chart..."):
-            fig, ax = plt.subplots(figsize=(11, 5))
-            fig.patch.set_facecolor("white")
-            ax.set_facecolor("#fafafa")
-            palette10 = sns.color_palette("tab10", 10)
-            for i in range(10):
-                subset = test_df[test_df["label"] == i]
-                sns.kdeplot(subset[PIXEL_COLS].values.flatten(), ax=ax,
-                            label=CLASS_NAMES[i], color=palette10[i], linewidth=1.8)
-            ax.set_xlabel("Pixel Intensity (0–255)", fontsize=10)
-            ax.set_ylabel("Density", fontsize=10)
-            ax.set_title("KDE of Pixel Intensities by Class", fontsize=13, fontweight="600", pad=12)
-            ax.legend(fontsize=8, ncol=2, framealpha=0.7)
-            ax.set_xlim(0, 255)
-            ax.grid(alpha=0.25, linestyle="--")
-            ax.spines["top"].set_visible(False)
-            ax.spines["right"].set_visible(False)
-            plt.tight_layout()
-            _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
-            st.image(_buf, use_column_width="always")
-            plt.close()
+    st.image("figures/eda_03_pixel_intensity.png", use_column_width="always")
 
-        st.divider()
+    st.divider()
 
-        # Feature 3 — Sample images
-        st.markdown("### Feature 3 — Sample Images per Class")
-        st.markdown(
-            "Visual inspection explains per-class difficulty. Pullovers and Shirts share collar shapes; "
-            "Sneakers and Ankle Boots share shoe contours. Bags and Trousers are easiest to classify due to "
-            "visually distinct silhouettes."
-        )
-        with st.spinner("Rendering sample images..."):
-            fig, axes = plt.subplots(2, 5, figsize=(13, 6))
-            fig.patch.set_facecolor("white")
-            fig.suptitle("One Sample per Class — Fashion MNIST Test Set", fontsize=12, fontweight="600", y=1.02)
-            for i, ax in enumerate(axes.flat):
-                subset = test_df[test_df["label"] == i]
-                row    = subset.sample(1, random_state=i * 7).iloc[0]
-                arr    = row[PIXEL_COLS].values.astype(float).reshape(28, 28)
-                ax.imshow(arr, cmap="gray", interpolation="nearest")
-                ax.set_title(f"{i}: {CLASS_NAMES[i]}", fontsize=9, fontweight="600", color="#374151", pad=5)
-                ax.axis("off")
-            plt.tight_layout()
-            _buf = io.BytesIO(); fig.savefig(_buf, format="png", dpi=110, bbox_inches="tight"); _buf.seek(0)
-            st.image(_buf, use_column_width="always")
-            plt.close()
-    else:
-        st.info("Test data not available.")
+    # Feature 3 — Sample images per class
+    st.markdown("### Feature 3 — Sample Images per Class")
+    st.markdown(
+        "Visual inspection explains per-class difficulty. Pullovers and Shirts share collar shapes; "
+        "Sneakers and Ankle Boots share shoe contours. Bags and Trousers are easiest to classify due to "
+        "visually distinct silhouettes."
+    )
+    st.image("figures/eda_02_sample_images.png", use_column_width="always")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
