@@ -282,13 +282,15 @@ div[class*="stSpinner"] > div { border-top-color: #5b6af5 !important; }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def api_get(path: str, timeout: int = 10):
+def api_get(path: str, timeout: int = 60):
     try:
         r = requests.get(f"{API_URL}{path}", timeout=timeout)
         r.raise_for_status()
         return r.json(), None
     except requests.ConnectionError:
-        return None, "Cannot connect to the API."
+        return None, "Cannot connect to the API. The service may be waking up — please refresh in 30 seconds."
+    except requests.Timeout:
+        return None, "Request timed out. The API may be waking up from sleep — please refresh in 30 seconds."
     except requests.HTTPError as e:
         return None, f"HTTP {e.response.status_code}"
     except Exception as e:
