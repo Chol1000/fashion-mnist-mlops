@@ -282,19 +282,27 @@ div[class*="stSpinner"] > div { border-top-color: #5b6af5 !important; }
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-def api_get(path: str, timeout: int = 60):
-    try:
-        r = requests.get(f"{API_URL}{path}", timeout=timeout)
-        r.raise_for_status()
-        return r.json(), None
-    except requests.ConnectionError:
-        return None, "Cannot connect to the API. The service may be waking up — please refresh in 30 seconds."
-    except requests.Timeout:
-        return None, "Request timed out. The API may be waking up from sleep — please refresh in 30 seconds."
-    except requests.HTTPError as e:
-        return None, f"HTTP {e.response.status_code}"
-    except Exception as e:
-        return None, str(e)
+def api_get(path: str, timeout: int = 60, _retries: int = 3):
+    for attempt in range(_retries):
+        try:
+            r = requests.get(f"{API_URL}{path}", timeout=timeout)
+            if r.status_code == 502 and attempt < _retries - 1:
+                time.sleep(5)
+                continue
+            r.raise_for_status()
+            return r.json(), None
+        except requests.ConnectionError:
+            if attempt < _retries - 1:
+                time.sleep(5)
+                continue
+            return None, "Cannot connect to the API. The service may be waking up — please refresh in 30 seconds."
+        except requests.Timeout:
+            return None, "Request timed out. The API may be waking up from sleep — please refresh in 30 seconds."
+        except requests.HTTPError as e:
+            return None, f"HTTP {e.response.status_code}"
+        except Exception as e:
+            return None, str(e)
+    return None, "API unavailable after retries — please refresh in 30 seconds."
 
 
 def api_post(path: str, json_body=None, files=None, timeout: int = 120):
@@ -328,13 +336,27 @@ def load_test_data():
 
 
 @st.cache_data(ttl=300)
+def _fetch_health():
+    data, err = api_get("/health")
+    if err:
+        raise RuntimeError(err)
+    return data
+
+
+@st.cache_data(ttl=300)
 def _fetch_insights():
-    return api_get("/insights")
+    data, err = api_get("/insights")
+    if err:
+        raise RuntimeError(err)
+    return data
 
 
 @st.cache_data(ttl=300)
 def _fetch_metrics():
-    return api_get("/metrics")
+    data, err = api_get("/metrics")
+    if err:
+        raise RuntimeError(err)
+    return data
 
 
 def _conf_level(confidence: float) -> str:
@@ -424,11 +446,15 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    health, err = api_get("/health")
-    api_online  = health is not None
-    model_ready = health.get("model_ready", False) if health else False
-    uptime      = health.get("uptime_sec", 0)      if health else 0
-    db_samples  = health.get("db_samples", 0)      if health else 0
+    try:
+        health = _fetch_health()
+        api_online  = True
+        model_ready = health.get("model_ready", False)
+        uptime      = health.get("uptime_sec", 0)
+        db_samples  = health.get("db_samples", 0)
+    except Exception:
+        api_online = model_ready = False
+        uptime = db_samples = 0
 
     api_dot = "dot-green" if api_online  else "dot-red"
     api_cls = "green"     if api_online  else "red"
@@ -458,7 +484,10 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
     with st.expander("Model Performance", expanded=True):
-        _sb_metrics, _ = api_get("/metrics")
+        try:
+            _sb_metrics = _fetch_metrics()
+        except Exception:
+            _sb_metrics = None
         _base_acc  = 93.17
         _base_f1   = 0.9297
         _base_prec = 0.9318
@@ -1052,12 +1081,11 @@ with tabs[2]:
     </div>
     """, unsafe_allow_html=True)
 
-    with st.spinner("Loading dataset insights..."):
-        insights, err = _fetch_insights()
-        test_df = load_test_data()
-
-    if err:
-        st.error(err)
+    try:
+        with st.spinner("Loading dataset insights..."):
+            insights = _fetch_insights()
+    except Exception as e:
+        st.error(str(e))
         st.stop()
 
     # KPIs
@@ -1146,7 +1174,12 @@ with tabs[3]:
 
     _metrics_ph = st.empty()
     _metrics_ph.info("⏳ Loading model metrics and building charts...")
-    metrics, err = _fetch_metrics()
+    try:
+        metrics = _fetch_metrics()
+        err = None
+    except Exception as e:
+        metrics = None
+        err = str(e)
     _metrics_ph.empty()
     if err:
         st.warning(err)
