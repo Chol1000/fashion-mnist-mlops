@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir --upgrade pip \
 
 COPY frontend/          /app/
 COPY outputs/figures/  /app/figures/
+COPY data/test/        /data/test/
 
 EXPOSE 8501
 
