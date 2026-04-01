@@ -305,24 +305,34 @@ def api_get(path: str, timeout: int = 60, _retries: int = 3):
     return None, "API unavailable after retries — please refresh in 30 seconds."
 
 
-def api_post(path: str, json_body=None, files=None, timeout: int = 120):
-    try:
-        if files:
-            r = requests.post(f"{API_URL}{path}", files=files, timeout=timeout)
-        else:
-            r = requests.post(f"{API_URL}{path}", json=json_body, timeout=timeout)
-        r.raise_for_status()
-        return r.json(), None
-    except requests.ConnectionError:
-        return None, "Cannot connect to the API."
-    except requests.HTTPError as e:
+def api_post(path: str, json_body=None, files=None, timeout: int = 120, _retries: int = 3):
+    for attempt in range(_retries):
         try:
-            detail = e.response.json().get("detail", str(e))
-        except Exception:
-            detail = str(e)
-        return None, detail
-    except Exception as e:
-        return None, str(e)
+            if files:
+                r = requests.post(f"{API_URL}{path}", files=files, timeout=timeout)
+            else:
+                r = requests.post(f"{API_URL}{path}", json=json_body, timeout=timeout)
+            if r.status_code == 502 and attempt < _retries - 1:
+                time.sleep(5)
+                continue
+            r.raise_for_status()
+            return r.json(), None
+        except requests.ConnectionError:
+            if attempt < _retries - 1:
+                time.sleep(5)
+                continue
+            return None, "Cannot connect to the API. The service may be waking up — please retry."
+        except requests.Timeout:
+            return None, "Request timed out. The API may be waking up — please retry."
+        except requests.HTTPError as e:
+            try:
+                detail = e.response.json().get("detail", str(e))
+            except Exception:
+                detail = str(e)
+            return None, detail
+        except Exception as e:
+            return None, str(e)
+    return None, "API unavailable after retries — please retry in 30 seconds."
 
 
 @st.cache_data(ttl=600)
