@@ -4,5 +4,5 @@ __pycache__/
 *.pyo
 .git/
 .gitignore
-outputs/
+outputs/locust/
 api/data/fashion_data.db
