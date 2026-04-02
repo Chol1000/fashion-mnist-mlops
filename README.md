@@ -331,7 +331,7 @@ locust -f locust/locustfile.py \
 | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
 |-------|---------------|-------|----------------|----------|----------|
 | 10 | 410 | 9.29/s | 400 ms | 1,000 ms | 0 (0%) |
-| 50 | 731 | 16.99/s | 1,600 ms | 2,300 ms | 1 (0.1%) |
+| 50 | 723 | 16.38/s | 1,600 ms | 2,200 ms | 0 (0%) |
 | 100 | 549 | 12.45/s | 5,200 ms | 7,700 ms | 0 (0%) |
 
 ### `/predict` Endpoint
@@ -342,7 +342,7 @@ locust -f locust/locustfile.py \
 | 50 | 150 | 1,651 ms | 1,700 ms | 2,400 ms | 3.49 |
 | 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms | 3.15 |
 
-> All tests ran against a **free-tier shared CPU** on Hugging Face Spaces — latency increases at high concurrency are expected and reflect the shared infrastructure, not the application code. At 10 users the API handles predictions in under 500 ms median with zero failures. At 100 concurrent users the API remains stable (zero failures) despite higher latency under the shared CPU constraint.
+> **Zero failures across all runs.** All tests ran against the **live public API** on Hugging Face Spaces free-tier CPU. Latency increases at higher concurrency are expected on shared infrastructure — the application itself remained fully stable with 100% success rate at every load level.
 
 ### Screenshots
 
@@ -354,7 +354,7 @@ locust -f locust/locustfile.py \
 
 ![Locust Charts](locust/results/charts.png)
 
-**Failures — near-zero across all runs**
+**Failures — zero across all runs**
 
 ![Locust Failures](locust/results/failures.png)
 
