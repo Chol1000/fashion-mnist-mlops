@@ -264,23 +264,69 @@ A ready-to-use sample file is included at `data/sample_retrain.csv` — 100 rand
 
 ## Load Testing with Locust
 
-Tests were run against the **live production API** on Hugging Face Spaces using two concurrent user classes:
+Two concurrent user classes were used:
 
 - **FashionAPIUser** — realistic mix of health checks, predictions, metrics, and insights (wait: 0.5–2 s)
 - **HeavyPredictUser** — rapid-fire `/predict` calls to stress-test inference (wait: 0.1–0.3 s)
 
-To run the load test yourself against the live API:
+---
+
+### Local Docker — Different Container Counts
+
+Tests run locally against the Dockerised stack using Nginx as a load balancer.
 
 ```bash
-pip install locust
+# 1 container — 10 users
+locust -f locust/locustfile.py --host http://localhost:8000 \
+       --users 10 --spawn-rate 2 --run-time 30s --headless \
+       --csv locust/results/run_10u_local
 
-locust -f locust/locustfile.py \
-  --host https://cholatemgiet-fashion-mnist-api.hf.space
+# 1 container — 50 users
+locust -f locust/locustfile.py --host http://localhost:8000 \
+       --users 50 --spawn-rate 5 --run-time 30s --headless \
+       --csv locust/results/run_50u_local
+
+# Scale to 3 containers behind Nginx
+docker compose up -d --scale backend=3
+
+# 3 containers — 50 users
+locust -f locust/locustfile.py --host http://localhost:80 \
+       --users 50 --spawn-rate 5 --run-time 30s --headless \
+       --csv locust/results/run_50u_3replicas
 ```
 
-Open **http://localhost:8089**, set your desired user count and spawn rate, then click **Start swarming**.
+#### Overall Throughput
 
-Or run headless:
+| Containers | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
+|-----------|-------|---------------|-------|----------------|----------|----------|
+| 1 | 10 | 566 | 21.79/s | 46 ms | 78 ms | 0 (0%) |
+| 1 | 50 | 1,553 | 55.35/s | 250 ms | 480 ms | 0 (0%) |
+| 3 (Nginx) | 50 | 1,255 | 43.21/s | 370 ms | 630 ms | 0 (0%) |
+
+#### `/predict` Endpoint
+
+| Containers | Users | Requests | Median | 95th pct | Req/s |
+|-----------|-------|----------|--------|----------|-------|
+| 1 | 10 | 62 | 51 ms | 78 ms | 2.39 |
+| 1 | 50 | 183 | 250 ms | 490 ms | 6.52 |
+| 3 (Nginx) | 50 | 139 | 390 ms | 680 ms | 4.79 |
+
+**Zero failures across all runs.** The 3-replica Nginx setup adds routing overhead on local hardware — all configurations handled load with 100% success rate.
+
+### Statistics — 50 users, 3 containers (Nginx)
+![Docker Statistics](locust/results/docker_statistics.png)
+
+### Request Rate & Response Time Over Time
+![Docker Charts](locust/results/docker_charts.png)
+
+### Failures — Zero Across All Runs
+![Docker Failures](locust/results/docker_failures.png)
+
+---
+
+### Live Deployment — Hugging Face Spaces
+
+Tests run against the **live production API** on Hugging Face Spaces.
 
 ```bash
 # 10 users
@@ -302,7 +348,7 @@ locust -f locust/locustfile.py \
        --csv locust/results/run_100u_live
 ```
 
-### Results — All Endpoints
+#### Overall Throughput
 
 | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
 |-------|---------------|-------|----------------|----------|----------|
@@ -310,7 +356,7 @@ locust -f locust/locustfile.py \
 | 50 | 1,050 | 17.00/s | 1,500 ms | 2,100 ms | 0 (0%) |
 | 100 | 549 | 12.45/s | 5,200 ms | 7,700 ms | 0 (0%) |
 
-### Results — `/predict` Endpoint
+#### `/predict` Endpoint
 
 | Users | Requests | Avg Latency | Median | 95th pct |
 |-------|----------|-------------|--------|----------|
@@ -318,7 +364,7 @@ locust -f locust/locustfile.py \
 | 50 | 174 | 1,635 ms | 1,600 ms | 2,300 ms |
 | 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms |
 
-**Zero failures across all runs.** Latency increases at higher concurrency reflect the shared free-tier CPU on Hugging Face Spaces — the application itself remained fully stable at every load level.
+**Zero failures across all runs.** Latency increases at higher concurrency reflect the shared free-tier CPU on Hugging Face Spaces.
 
 ### Statistics — 50 users, live HF Space
 ![Locust Statistics](locust/results/statistics.png)
