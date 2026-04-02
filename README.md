@@ -331,7 +331,7 @@ locust -f locust/locustfile.py \
 | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
 |-------|---------------|-------|----------------|----------|----------|
 | 10 | 410 | 9.29/s | 400 ms | 1,000 ms | 0 (0%) |
-| 50 | 723 | 16.38/s | 1,600 ms | 2,200 ms | 0 (0%) |
+| 50 | 743 | 12.63/s | 2,500 ms | 3,500 ms | 0 (0%) |
 | 100 | 549 | 12.45/s | 5,200 ms | 7,700 ms | 0 (0%) |
 
 ### `/predict` Endpoint
@@ -339,7 +339,7 @@ locust -f locust/locustfile.py \
 | Users | Total Requests | Avg Latency | Median | 95th pct | Req/s |
 |-------|---------------|------------|--------|----------|-------|
 | 10 | 68 | 615 ms | 410 ms | 2,800 ms | 1.54 |
-| 50 | 150 | 1,651 ms | 1,700 ms | 2,400 ms | 3.49 |
+| 50 | 174 | 2,800 ms | 2,800 ms | 3,600 ms | 2.90 |
 | 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms | 3.15 |
 
 > **Zero failures across all runs.** All tests ran against the **live public API** on Hugging Face Spaces free-tier CPU. Latency increases at higher concurrency are expected on shared infrastructure — the application itself remained fully stable with 100% success rate at every load level.
