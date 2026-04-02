@@ -297,51 +297,56 @@ A ready-to-use file is included at `data/sample_retrain.csv`.
 
 ## Load Testing Results
 
-Flood simulation using Locust with two user classes:
-- **FashionAPIUser** (25 users) — realistic mix of `/health`, `/predict`, `/metrics`, `/insights`
-- **HeavyPredictUser** (25 users) — rapid-fire `/predict` calls only
+Load tests were run against the **live production API** on Hugging Face Spaces using Locust with two concurrent user classes:
+
+- **FashionAPIUser** — realistic mix of `GET /health`, `POST /predict`, `GET /metrics`, `GET /insights` (wait: 0.5–2 s)
+- **HeavyPredictUser** — rapid-fire `POST /predict` only (wait: 0.1–0.3 s)
+
+**Host tested:** `https://cholatemgiet-fashion-mnist-api.hf.space` | **Run time:** 45 s each
 
 ### Run Commands
 
 ```bash
-# 1 container — 10 users
-locust -f locust/locustfile.py --host http://localhost:8000 \
-       --users 10 --spawn-rate 2 --run-time 30s --headless \
-       --csv locust/results/run_10u_local
+# 10 users
+locust -f locust/locustfile.py \
+       --host https://cholatemgiet-fashion-mnist-api.hf.space \
+       --users 10 --spawn-rate 2 --run-time 45s --headless \
+       --csv locust/results/run_10u_live
 
-# 1 container — 50 users
-locust -f locust/locustfile.py --host http://localhost:8000 \
-       --users 50 --spawn-rate 5 --run-time 30s --headless \
-       --csv locust/results/run_50u_local
+# 50 users
+locust -f locust/locustfile.py \
+       --host https://cholatemgiet-fashion-mnist-api.hf.space \
+       --users 50 --spawn-rate 5 --run-time 45s --headless \
+       --csv locust/results/run_50u_live
 
-# 3 containers behind Nginx — 50 users
-docker compose up -d --scale backend=3
-locust -f locust/locustfile.py --host http://localhost:80 \
-       --users 50 --spawn-rate 5 --run-time 30s --headless \
-       --csv locust/results/run_50u_3replicas
+# 100 users
+locust -f locust/locustfile.py \
+       --host https://cholatemgiet-fashion-mnist-api.hf.space \
+       --users 100 --spawn-rate 10 --run-time 45s --headless \
+       --csv locust/results/run_100u_live
 ```
 
-### Overall Throughput
+### Overall Throughput — All Endpoints
 
-| Containers | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
-|-----------|-------|---------------|-------|----------------|----------|----------|
-| 1 | 10 | 569 | 21.79/s | 46 ms | 78 ms | 0 (0%) |
-| 1 | 50 | 1,601 | 55.56/s | 250 ms | 470 ms | 0 (0%) |
-| 3 (Nginx) | 50 | 1,357 | 46.70/s | 340 ms | 600 ms | 0 (0%) |
+| Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
+|-------|---------------|-------|----------------|----------|----------|
+| 10 | 410 | 9.29/s | 400 ms | 1,000 ms | 0 (0%) |
+| 50 | 731 | 16.99/s | 1,600 ms | 2,300 ms | 1 (0.1%) |
+| 100 | 549 | 12.45/s | 5,200 ms | 7,700 ms | 0 (0%) |
 
 ### `/predict` Endpoint
 
-| Containers | Users | Avg Latency | Median | 95th pct | Req/s |
-|-----------|-------|------------|--------|----------|-------|
-| 1 | 10 | 63 ms | 51 ms | 78 ms | 2.37 |
-| 1 | 50 | 261 ms | 260 ms | 490 ms | 6.49 |
-| 3 (Nginx) | 50 | 388 ms | 370 ms | 920 ms | 5.82 |
+| Users | Total Requests | Avg Latency | Median | 95th pct | Req/s |
+|-------|---------------|------------|--------|----------|-------|
+| 10 | 68 | 615 ms | 410 ms | 2,800 ms | 1.54 |
+| 50 | 150 | 1,651 ms | 1,700 ms | 2,400 ms | 3.49 |
+| 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms | 3.15 |
 
-> **Zero failures across all runs.** The 3-replica Nginx setup adds routing overhead compared to direct port 8000 access. All configurations handled 50 concurrent users with 100% success rate.
+> All tests ran against a **free-tier shared CPU** on Hugging Face Spaces — latency increases at high concurrency are expected and reflect the shared infrastructure, not the application code. At 10 users the API handles predictions in under 500 ms median with zero failures. At 100 concurrent users the API remains stable (zero failures) despite higher latency under the shared CPU constraint.
 
 ### Screenshots
 
-**Statistics — all endpoints, 50 users through Nginx**
+**Statistics — all endpoints, 50 users, live HF Space**
 
 ![Locust Statistics](locust/results/statistics.png)
 
@@ -349,7 +354,7 @@ locust -f locust/locustfile.py --host http://localhost:80 \
 
 ![Locust Charts](locust/results/charts.png)
 
-**Failures — zero across all runs**
+**Failures — near-zero across all runs**
 
 ![Locust Failures](locust/results/failures.png)
 
