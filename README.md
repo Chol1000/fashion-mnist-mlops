@@ -22,11 +22,11 @@ pinned: false
 
 | Resource | Description | Link |
 |----------|-------------|------|
-| Video Demo | Full walkthrough — prediction, retraining, live deployment (camera on) | [Watch on YouTube](https://youtu.be/Nw2GPJmoh20) |
-| Live Dashboard (Public) | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://cholatemgiet-fashion-mnist-frontend.hf.space) |
-| Live API (Public) | FastAPI backend — hosted on Hugging Face Spaces (16 GB RAM, zero cost) | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space) |
-| Interactive API Docs | Swagger UI — test all endpoints directly in the browser | [Open Swagger](https://cholatemgiet-fashion-mnist-api.hf.space/docs) |
-| GitHub Repository | Full source code — notebook, API, frontend, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
+| Video Demo | Full walkthrough — prediction, retraining, deployment (camera on) | [Watch on YouTube](https://youtu.be/Nw2GPJmoh20) |
+| Live Dashboard | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://cholatemgiet-fashion-mnist-frontend.hf.space) |
+| Live API | FastAPI backend hosted on Hugging Face Spaces | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space) |
+| API Docs | Swagger UI — test all endpoints directly in the browser | [Open Swagger](https://cholatemgiet-fashion-mnist-api.hf.space/docs) |
+| GitHub | Full source code — notebook, API, frontend, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
 
 </div>
 
@@ -34,92 +34,11 @@ pinned: false
 
 ## Project Overview
 
-This project implements a production-grade MLOps pipeline for classifying 10 categories of clothing images using the Fashion MNIST dataset. It covers the complete machine learning lifecycle:
+This project implements a production-grade MLOps pipeline for classifying clothing images using the **Fashion MNIST** dataset — 70,000 greyscale 28×28 images across 10 balanced clothing categories.
 
-| Component | Technology |
-|-----------|-----------|
-| Data preprocessing | TensorFlow tf.data, NumPy, Pandas |
-| Model training | MobileNetV2 transfer learning |
-| API serving | FastAPI + Uvicorn |
-| Dashboard | Streamlit |
-| Database | SQLite |
-| Containerisation | Docker + Nginx |
-| Load testing | Locust |
-| Cloud deployment | Hugging Face Spaces |
+The pipeline covers the full ML lifecycle: data acquisition and preprocessing, model training with transfer learning, API serving, interactive dashboard, database-backed retraining, Docker containerisation, and cloud deployment on Hugging Face Spaces. Load testing with Locust validates the system under concurrent traffic.
 
-**Dataset:** Fashion MNIST — 70,000 greyscale 28×28 images across 10 balanced clothing categories (60,000 train / 10,000 test).
-
-**Model:** MobileNetV2 pre-trained on ImageNet with a custom classification head. Input images are resized from 28×28 to 128×128×3 (RGB).
-
----
-
-## Model Performance
-
-| Metric | Score |
-|--------|-------|
-| Test Accuracy | **93.17%** |
-| Test Loss | 0.2377 |
-| Macro F1 Score | **0.9320** |
-| Macro Precision | 0.9324 |
-| Macro Recall | 0.9317 |
-
-The most frequently confused classes are Shirt, T-shirt/top, and Coat due to overlapping silhouettes in greyscale. Bag and Trouser are the easiest to classify due to visually distinct shapes.
-
----
-
-## Dataset Visualisations
-
-### Class Distribution
-![Class Distribution](outputs/figures/eda_01_class_distribution.png)
-
-The dataset is perfectly balanced — each of the 10 categories contains exactly 6,000 training samples, eliminating class imbalance as a source of bias.
-
-### Sample Images per Class
-![Sample Images](outputs/figures/eda_02_sample_images.png)
-
-Visual inspection reveals why certain classes are harder to distinguish — Pullovers, Shirts, and Coats share similar collar and sleeve shapes in greyscale.
-
-### Pixel Intensity Distribution
-![Pixel Intensity](outputs/figures/eda_03_pixel_intensity.png)
-
-Most pixel values cluster at 0 (black background), with foreground clothing pixels spread across the 100–255 range. This bimodal distribution informs our normalisation strategy.
-
-### Mean Images per Class
-![Mean Images](outputs/figures/eda_04_mean_images.png)
-
-Averaging all images per class reveals the archetypal shape of each garment — Bags and Trousers have the clearest silhouettes while Shirts blend with T-shirts.
-
----
-
-## Model Architecture
-
-```
-Input (128 × 128 × 3)
-└── MobileNetV2 base [ImageNet weights, include_top=False]
-    └── GlobalAveragePooling2D → (1280,)
-        └── Dense(256, relu, L2=1e-4)
-            └── BatchNormalization
-                └── Dropout(0.5)
-                    └── Dense(10, softmax)
-```
-
-**Total parameters:** ~2.6M | **Trainable in Phase 1:** ~330K (head only)
-
-**Training strategy:**
-- **Phase 1 — Feature extraction:** MobileNetV2 base frozen, Adam lr=1e-3, EarlyStopping patience=5
-- **Phase 2 — Fine-tuning:** Last 80 layers unfrozen, Adam lr=1e-5, EarlyStopping patience=5
-
-### Training History
-![Training History](outputs/figures/training_history.png)
-
-### Confusion Matrix
-![Confusion Matrix](outputs/figures/confusion_matrix.png)
-
-### Per-Class Metrics
-![Per Class Metrics](outputs/figures/per_class_metrics.png)
-
-### Preprocessing Pipeline
-![Preprocessing Pipeline](outputs/figures/preprocessing_pipeline.png)
+**Model:** MobileNetV2 pre-trained on ImageNet, fine-tuned on Fashion MNIST. Input images are resized from 28×28 to 128×128×3 before inference.
 
 ---
 
@@ -138,8 +57,8 @@ fashion-mnist-mlops/
 │   └── train.py                     # Standalone CLI training script
 │
 ├── api/
-│   ├── main.py                      # FastAPI endpoints (predict, retrain, metrics, insights)
-│   ├── database.py                  # SQLite storage for uploaded samples and retrain logs
+│   ├── main.py                      # FastAPI endpoints
+│   ├── database.py                  # SQLite — uploaded samples and retrain logs
 │   └── requirements.txt
 │
 ├── frontend/
@@ -157,11 +76,9 @@ fashion-mnist-mlops/
 │
 ├── models/
 │   ├── fashion_model.h5             # Trained MobileNetV2 model
-│   └── training_metrics.json        # Accuracy, F1, per-class metrics
+│   └── training_metrics.json        # Saved evaluation metrics
 │
-├── outputs/
-│   └── figures/                     # EDA plots, training curves, confusion matrix
-│
+├── outputs/figures/                 # EDA plots, training curves, confusion matrix
 ├── nginx.conf                       # Nginx load balancer config
 ├── docker-compose.yml               # Full stack: api, frontend, locust, nginx
 ├── Dockerfile.api                   # API container
@@ -169,7 +86,7 @@ fashion-mnist-mlops/
 └── run_local.sh                     # One-command local start without Docker
 ```
 
-> **Note:** `data/` CSV files are stored via Git LFS — clone normally and they download automatically. `models/fashion_model.h5` is included in the repo. No manual steps required.
+> `data/` CSV files are tracked via Git LFS and download automatically on clone. The trained model `fashion_model.h5` is included in the repo — no manual steps required.
 
 ---
 
@@ -177,41 +94,30 @@ fashion-mnist-mlops/
 
 ### Option A — Docker (Recommended)
 
-Requires Docker Desktop installed and running.
-
 ```bash
 git clone https://github.com/Chol1000/fashion-mnist-mlops.git
 cd fashion-mnist-mlops
-
-# Build and start all services
 docker compose up --build
 ```
 
-| Service | URL |
-|---------|-----|
-| Frontend Dashboard | http://localhost:8501 |
-| API | http://localhost:8000 |
-| API Docs | http://localhost:8000/docs |
-| Locust Load Testing | http://localhost:8089 |
+Once running, open:
+- **Dashboard:** http://localhost:8501
+- **API:** http://localhost:8000
+- **API Docs:** http://localhost:8000/docs
+- **Locust UI:** http://localhost:8089
 
-Scale API to multiple replicas:
+To scale the API across multiple replicas:
 ```bash
 docker compose up --scale backend=3
 ```
 
----
-
 ### Option B — Local (No Docker)
-
-Requires Python 3.11.
 
 ```bash
 git clone https://github.com/Chol1000/fashion-mnist-mlops.git
 cd fashion-mnist-mlops
 bash run_local.sh
 ```
-
----
 
 ### Option C — Manual Setup
 
@@ -220,10 +126,10 @@ python3.11 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 
-# Terminal 1 — Start API
+# Terminal 1 — API
 PYTHONPATH=. uvicorn api.main:app --host 0.0.0.0 --port 8000
 
-# Terminal 2 — Start Frontend
+# Terminal 2 — Frontend
 API_URL=http://localhost:8000 streamlit run frontend/app.py --server.port 8501
 ```
 
@@ -231,7 +137,7 @@ API_URL=http://localhost:8000 streamlit run frontend/app.py --server.port 8501
 
 ## Training the Model
 
-### Option A — Google Colab (Recommended)
+### Google Colab (Recommended)
 
 1. Upload `notebook/fashion_mnist_mlops.ipynb` to [Google Colab](https://colab.research.google.com)
 2. Set `Runtime > Change runtime type > T4 GPU`
@@ -239,12 +145,72 @@ API_URL=http://localhost:8000 streamlit run frontend/app.py --server.port 8501
 4. The final cell downloads `fashion_model.h5` and `training_metrics.json` to your machine
 5. Place both files in the `models/` folder
 
-### Option B — Standalone Script
+### Standalone Script
 
 ```bash
 source venv/bin/activate
 python -m src.train
 ```
+
+---
+
+## Model Architecture & Performance
+
+The model uses a two-phase transfer learning strategy on MobileNetV2:
+
+```
+Input (128 × 128 × 3)
+└── MobileNetV2 [ImageNet weights, frozen in Phase 1]
+    └── GlobalAveragePooling2D
+        └── Dense(256, relu) + BatchNorm + Dropout(0.5)
+            └── Dense(10, softmax)
+```
+
+- **Phase 1 — Feature extraction:** base frozen, Adam lr=1e-3, EarlyStopping patience=5
+- **Phase 2 — Fine-tuning:** last 80 layers unfrozen, Adam lr=1e-5, EarlyStopping patience=5
+
+| Metric | Score |
+|--------|-------|
+| Test Accuracy | **93.17%** |
+| Test Loss | 0.2377 |
+| Macro F1 Score | **0.9320** |
+| Macro Precision | 0.9324 |
+| Macro Recall | 0.9317 |
+
+Shirt, T-shirt/top, and Coat are the most confused classes due to overlapping greyscale silhouettes. Bag and Trouser are the easiest to classify.
+
+---
+
+## Dataset Visualisations
+
+### Class Distribution
+![Class Distribution](outputs/figures/eda_01_class_distribution.png)
+
+The dataset is perfectly balanced — 6,000 training samples per class, eliminating class imbalance as a source of bias.
+
+### Sample Images per Class
+![Sample Images](outputs/figures/eda_02_sample_images.png)
+
+Pullovers, Shirts, and Coats share similar collar and sleeve shapes in greyscale — explaining the model's confusion between these classes.
+
+### Pixel Intensity Distribution
+![Pixel Intensity](outputs/figures/eda_03_pixel_intensity.png)
+
+Most pixels cluster at 0 (black background), with clothing pixels spread across the 100–255 range. This bimodal distribution informed the normalisation strategy.
+
+### Mean Images per Class
+![Mean Images](outputs/figures/eda_04_mean_images.png)
+
+Averaging all images per class reveals each garment's archetypal shape — Bags and Trousers have the clearest silhouettes.
+
+### Training History
+![Training History](outputs/figures/training_history.png)
+
+### Confusion Matrix
+![Confusion Matrix](outputs/figures/confusion_matrix.png)
+
+### Per-Class Metrics
+![Per Class Metrics](outputs/figures/per_class_metrics.png)
 
 ---
 
@@ -259,11 +225,11 @@ python -m src.train
 | POST | `/upload-data` | Upload labelled CSV for retraining |
 | POST | `/retrain` | Trigger fine-tuning on uploaded data |
 | GET | `/retrain/status` | Poll live training progress |
-| GET | `/retrain/history` | View past retraining run logs |
+| GET | `/retrain/history` | Past retraining run logs |
 | GET | `/metrics` | Model evaluation metrics |
 | GET | `/insights` | Dataset statistics and class distribution |
 
-Full interactive documentation: https://cholatemgiet-fashion-mnist-api.hf.space/docs
+Full interactive docs: https://cholatemgiet-fashion-mnist-api.hf.space/docs
 
 ---
 
@@ -273,38 +239,32 @@ Full interactive documentation: https://cholatemgiet-fashion-mnist-api.hf.space/
 2. Upload a CSV with columns: `label, pixel1, pixel2, ..., pixel784`
 3. Samples are validated, cleaned, and stored in SQLite
 4. Click **Start Retraining** — the model is fine-tuned using Adam lr=1e-4
-5. Live epoch progress is displayed during training
-6. Updated metrics are shown in the dashboard and logged to the database
+5. Live epoch progress is streamed during training
+6. Updated metrics are logged to the database and displayed in the dashboard
 
-### Sample Data for Testing
-
-A ready-to-use file is included at `data/sample_retrain.csv`.
-
-| Property | Detail |
-|----------|--------|
-| Rows | 100 samples |
-| Source | Fashion MNIST test set (randomly sampled) |
-| Format | `label` (0–9) + `pixel1`…`pixel784` (values 0–255) |
-
-**Steps:**
-1. Download `data/sample_retrain.csv` from the GitHub repo
-2. Open the dashboard → **Upload & Retrain** tab
-3. Upload the file → validated and stored in database
-4. Click **Start Retraining** → watch live epoch progress
-5. View updated accuracy and F1 score once complete
+A ready-to-use sample file is included at `data/sample_retrain.csv` — 100 randomly sampled rows from the Fashion MNIST test set in the correct format.
 
 ---
 
-## Load Testing Results
+## Load Testing with Locust
 
-Load tests were run against the **live production API** on Hugging Face Spaces using Locust with two concurrent user classes:
+Tests were run against the **live production API** on Hugging Face Spaces using two concurrent user classes:
 
-- **FashionAPIUser** — realistic mix of `GET /health`, `POST /predict`, `GET /metrics`, `GET /insights` (wait: 0.5–2 s)
-- **HeavyPredictUser** — rapid-fire `POST /predict` only (wait: 0.1–0.3 s)
+- **FashionAPIUser** — realistic mix of health checks, predictions, metrics, and insights (wait: 0.5–2 s)
+- **HeavyPredictUser** — rapid-fire `/predict` calls to stress-test inference (wait: 0.1–0.3 s)
 
-**Host tested:** `https://cholatemgiet-fashion-mnist-api.hf.space` | **Run time:** 45 s each
+To run the load test yourself against the live API:
 
-### Run Commands
+```bash
+pip install locust
+
+locust -f locust/locustfile.py \
+  --host https://cholatemgiet-fashion-mnist-api.hf.space
+```
+
+Open **http://localhost:8089**, set your desired user count and spawn rate, then click **Start swarming**.
+
+Or run headless:
 
 ```bash
 # 10 users
@@ -326,76 +286,57 @@ locust -f locust/locustfile.py \
        --csv locust/results/run_100u_live
 ```
 
-### Overall Throughput — All Endpoints
+### Results — All Endpoints
 
 | Users | Total Requests | Req/s | Median Latency | 95th pct | Failures |
 |-------|---------------|-------|----------------|----------|----------|
 | 10 | 410 | 9.29/s | 400 ms | 1,000 ms | 0 (0%) |
-| 50 | 743 | 12.63/s | 2,500 ms | 3,500 ms | 0 (0%) |
+| 50 | 1,050 | 17.00/s | 1,500 ms | 2,100 ms | 0 (0%) |
 | 100 | 549 | 12.45/s | 5,200 ms | 7,700 ms | 0 (0%) |
 
-### `/predict` Endpoint
+### Results — `/predict` Endpoint
 
-| Users | Total Requests | Avg Latency | Median | 95th pct | Req/s |
-|-------|---------------|------------|--------|----------|-------|
-| 10 | 68 | 615 ms | 410 ms | 2,800 ms | 1.54 |
-| 50 | 174 | 2,800 ms | 2,800 ms | 3,600 ms | 2.90 |
-| 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms | 3.15 |
+| Users | Requests | Avg Latency | Median | 95th pct |
+|-------|----------|-------------|--------|----------|
+| 10 | 68 | 615 ms | 410 ms | 2,800 ms |
+| 50 | 174 | 1,635 ms | 1,600 ms | 2,300 ms |
+| 100 | 139 | 4,916 ms | 5,200 ms | 7,700 ms |
 
-> **Zero failures across all runs.** All tests ran against the **live public API** on Hugging Face Spaces free-tier CPU. Latency increases at higher concurrency are expected on shared infrastructure — the application itself remained fully stable with 100% success rate at every load level.
+**Zero failures across all runs.** Latency increases at higher concurrency reflect the shared free-tier CPU on Hugging Face Spaces — the application itself remained fully stable at every load level.
 
-### Screenshots
-
-**Statistics — all endpoints, 50 users, live HF Space**
-
+### Statistics — 50 users, live HF Space
 ![Locust Statistics](locust/results/statistics.png)
 
-**Request rate and response time over time**
-
+### Request Rate & Response Time Over Time
 ![Locust Charts](locust/results/charts.png)
 
-**Failures — zero across all runs**
-
+### Failures — Zero Across All Runs
 ![Locust Failures](locust/results/failures.png)
 
 ---
 
 ## Dataset
 
-**Fashion MNIST** is a dataset of Zalando's article images — a drop-in replacement for the original MNIST handwritten digits dataset.
+**Fashion MNIST** — Zalando's article images, a drop-in replacement for the original MNIST handwritten digits dataset.
 
-| Property | Detail |
-|----------|--------|
-| Source | Zalando Research |
-| Classes | 10 clothing categories |
-| Training samples | 60,000 |
-| Test samples | 10,000 |
-| Image size | 28 × 28 greyscale |
-| Format | CSV (pixel values 0–255) |
+60,000 training samples and 10,000 test samples across 10 classes:
 
-**Class labels:**
+| Label | Class | Label | Class |
+|-------|-------|-------|-------|
+| 0 | T-shirt/top | 5 | Sandal |
+| 1 | Trouser | 6 | Shirt |
+| 2 | Pullover | 7 | Sneaker |
+| 3 | Dress | 8 | Bag |
+| 4 | Coat | 9 | Ankle boot |
 
-| Label | Class |
-|-------|-------|
-| 0 | T-shirt/top |
-| 1 | Trouser |
-| 2 | Pullover |
-| 3 | Dress |
-| 4 | Coat |
-| 5 | Sandal |
-| 6 | Shirt |
-| 7 | Sneaker |
-| 8 | Bag |
-| 9 | Ankle boot |
-
-**Download:** [Fashion MNIST on Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
+Download: [Fashion MNIST on Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
 
 ---
 
 ## References
 
-- **Dataset:** Xiao, H., Rasul, K., & Vollgraf, R. (2017). *Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms.* Zalando Research. [GitHub](https://github.com/zalandoresearch/fashion-mnist) · [Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
-- **Model:** Sandler, M., et al. (2018). *MobileNetV2: Inverted Residuals and Linear Bottlenecks.* CVPR 2018. [Paper](https://arxiv.org/abs/1801.04381)
-- **Framework:** Abadi, M., et al. (2015). *TensorFlow: Large-Scale Machine Learning on Heterogeneous Systems.* [tensorflow.org](https://www.tensorflow.org)
-- **Load Testing:** [Locust — An open source load testing tool](https://locust.io)
-- **Deployment:** [Hugging Face Spaces](https://huggingface.co/spaces)
+- Xiao, H., Rasul, K., & Vollgraf, R. (2017). *Fashion-MNIST: a Novel Image Dataset for Benchmarking Machine Learning Algorithms.* Zalando Research. [GitHub](https://github.com/zalandoresearch/fashion-mnist) · [Kaggle](https://www.kaggle.com/datasets/zalando-research/fashionmnist?resource=download)
+- Sandler, M., et al. (2018). *MobileNetV2: Inverted Residuals and Linear Bottlenecks.* CVPR 2018. [Paper](https://arxiv.org/abs/1801.04381)
+- Abadi, M., et al. (2015). *TensorFlow: Large-Scale Machine Learning on Heterogeneous Systems.* [tensorflow.org](https://www.tensorflow.org)
+- [Locust — Open source load testing tool](https://locust.io)
+- [Hugging Face Spaces](https://huggingface.co/spaces)
