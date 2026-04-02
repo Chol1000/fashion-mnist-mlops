@@ -32,6 +32,22 @@ pinned: false
 
 ---
 
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Repository Structure](#repository-structure)
+- [Quick Start](#quick-start)
+- [Training the Model](#training-the-model)
+- [Model Architecture & Performance](#model-architecture--performance)
+- [Dataset Visualisations](#dataset-visualisations)
+- [API Endpoints](#api-endpoints)
+- [Retraining Workflow](#retraining-workflow)
+- [Load Testing with Locust](#load-testing-with-locust)
+- [Dataset](#dataset)
+- [References](#references)
+
+---
+
 ## Project Overview
 
 This project implements a production-grade MLOps pipeline for classifying clothing images using the **Fashion MNIST** dataset — 70,000 greyscale 28×28 images across 10 balanced clothing categories.
