@@ -23,7 +23,7 @@ pinned: false
 | Resource | Description | Link |
 |----------|-------------|------|
 | Video Demo | Full walkthrough — prediction, retraining, deployment (camera on) | [Watch on YouTube](https://youtu.be/Nw2GPJmoh20) |
-| Live Dashboard | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://cholatemgiet-fashion-mnist-frontend.hf.space) |
+| Live Dashboard | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://huggingface.co/spaces/CholatemGiet/fashion-mnist-frontend) |
 | Live API | FastAPI backend hosted on Hugging Face Spaces | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space) |
 | API Docs | Swagger UI — test all endpoints directly in the browser | [Open Swagger](https://cholatemgiet-fashion-mnist-api.hf.space/docs) |
 | GitHub | Full source code — notebook, API, frontend, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
