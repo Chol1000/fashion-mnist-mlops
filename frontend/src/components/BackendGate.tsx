@@ -101,8 +101,8 @@ export default function BackendGate({ children }: { children: ReactNode }) {
               message="Taking longer than a normal cold start"
               description={
                 API_IS_REMOTE
-                  ? "The Space may be paused rather than asleep, which needs a manual restart. Open it below and use Settings → Restart this Space."
-                  : "The container may have failed to start. Check the Space's build and container logs."
+                  ? "A sleeping Space wakes on its own from the requests this page is already sending. One that is paused or has crashed cannot — that needs an owner to restart it. Use the button below, then Settings → Restart this Space."
+                  : "The container may have failed to start rather than simply being asleep. Open the Space below and check its build and container logs."
               }
             />
           )}
@@ -112,7 +112,7 @@ export default function BackendGate({ children }: { children: ReactNode }) {
               Retry now
             </Button>
             <Button icon={<ApiOutlined />} href={SPACE_URL} target="_blank" rel="noreferrer">
-              Open the Space
+              Restart it on Hugging Face
             </Button>
             <Button type="text" onClick={() => setSkipped(true)}>
               Continue anyway
