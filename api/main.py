@@ -6,10 +6,11 @@ Endpoints:
     GET  /health            Model readiness and database stats
     POST /predict           Predict from 784 pixel values
     POST /predict/image     Predict from uploaded PNG or JPG
-    POST /upload-data       Upload labelled CSV to SQLite
-    POST /retrain           Trigger background fine-tuning
+    POST /upload-data       Upload labelled CSV to SQLite (requires X-API-Key)
+    POST /retrain           Trigger background fine-tuning (requires X-API-Key)
     GET  /retrain/status    Poll retraining progress
     GET  /retrain/history   Past retraining run logs
+    DEL  /uploaded-data     Clear uploaded samples (requires X-API-Key)
     GET  /metrics           Model evaluation metrics
     GET  /insights          Dataset statistics
     GET  /sample/random     Random held-out test image
@@ -23,6 +24,7 @@ from __future__ import annotations
 import io
 import json
 import logging
+import os
 import random
 import sys
 import time
@@ -32,7 +34,7 @@ from typing import List, Optional
 
 import numpy as np
 import pandas as pd
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -69,6 +71,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── Admin auth ────────────────────────────────────────────────────────────────
+# Gates the endpoints that mutate the live model/dataset (upload-data, retrain,
+# clearing uploads) behind a secret set via the Space's Secrets panel. Without
+# this, anyone who found /docs could feed the model garbage data or retrain it
+# on demand. Denies by default when the key isn't configured, rather than
+# leaving the gate open.
+RETRAIN_API_KEY = os.environ.get("RETRAIN_API_KEY")
+
+
+def require_admin_key(x_api_key: str | None = Header(default=None)):
+    if not RETRAIN_API_KEY or x_api_key != RETRAIN_API_KEY:
+        raise HTTPException(401, "Missing or invalid API key")
+
 
 # ── Startup ───────────────────────────────────────────────────────────────────
 predictor    = Predictor()
@@ -210,7 +226,7 @@ async def predict_image(file: UploadFile = File(...)):
 
 
 # ── Data Upload ───────────────────────────────────────────────────────────────
-@app.post("/upload-data", response_model=UploadResponse, tags=["Retraining"])
+@app.post("/upload-data", response_model=UploadResponse, tags=["Retraining"], dependencies=[Depends(require_admin_key)])
 async def upload_data(file: UploadFile = File(...)):
     """
     Upload a CSV file of labelled samples to be used for retraining.
@@ -365,7 +381,7 @@ def _run_retrain(epochs: int, batch_size: int, clear_after: bool):
         _retrain_state["running"] = False
 
 
-@app.post("/retrain", tags=["Retraining"])
+@app.post("/retrain", tags=["Retraining"], dependencies=[Depends(require_admin_key)])
 def trigger_retrain(request: RetrainRequest, background_tasks: BackgroundTasks):
     """
     Trigger background retraining of the model on uploaded data.
@@ -416,7 +432,7 @@ def retrain_history(limit: int = 20):
     return {"history": db.get_retrain_history(limit=limit)}
 
 
-@app.delete("/uploaded-data", tags=["Retraining"])
+@app.delete("/uploaded-data", tags=["Retraining"], dependencies=[Depends(require_admin_key)])
 def clear_uploaded_data():
     """Clear all uploaded samples from the database."""
     db.clear_uploaded_samples()
