@@ -148,7 +148,7 @@ export default function Insights() {
               <FigureCard
                 title="Preprocessing pipeline"
                 src={api.figure("preprocessing_pipeline.png")}
-                caption="What happens to one image between the CSV row and the model's input tensor — the same transforms the Upload & Retrain page applies to anything you upload."
+                caption="What happens to one image between the CSV row and the model's input tensor — the same transforms the retraining API applies to anything uploaded to it."
               />
             </>
           );

@@ -268,7 +268,6 @@ export default function Overview() {
                       {(
                         [
                           ["Classify", "Upload a photo, draw a garment, or pull a held-out test image and see the model's full probability distribution.", "/"],
-                          ["Upload & Retrain", "Push labelled CSV rows into SQLite, then fine-tune the saved model on them and watch each epoch land.", "/training"],
                           ["Dataset Insights", "Class balance, pixel-intensity distributions and per-class samples from the 70,000-image dataset.", "/dataset"],
                           ["Model Metrics", "Per-class precision/recall/F1, the confusion matrix, and the 30-epoch training history.", "/evaluation"],
                         ] as [string, string, string][]

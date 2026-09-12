@@ -13,7 +13,6 @@ import Layout from "./components/Layout";
 import Predict from "./pages/Predict";
 
 const Overview = lazy(() => import("./pages/Overview"));
-const Retrain = lazy(() => import("./pages/Retrain"));
 const Insights = lazy(() => import("./pages/Insights"));
 const Metrics = lazy(() => import("./pages/Metrics"));
 const System = lazy(() => import("./pages/System"));
@@ -55,7 +54,6 @@ function Themed({ children }: { children: ReactNode }) {
 
 const ROUTES: [string, React.ComponentType][] = [
   ["/overview", Overview],
-  ["/training", Retrain],
   ["/dataset", Insights],
   ["/evaluation", Metrics],
   ["/status", System],

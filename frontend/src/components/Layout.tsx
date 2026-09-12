@@ -4,7 +4,7 @@ import {
   Layout as AntLayout, Menu, Button, Typography, Space, Drawer, Grid, Badge, Tooltip,
 } from "antd";
 import {
-  DashboardOutlined, ExperimentOutlined, CloudUploadOutlined, BarChartOutlined,
+  DashboardOutlined, ExperimentOutlined, BarChartOutlined,
   LineChartOutlined, ApiOutlined, InfoCircleOutlined, SunOutlined, MoonOutlined,
   MenuOutlined, FileTextOutlined,
 } from "@ant-design/icons";
@@ -28,7 +28,6 @@ const NAV_ITEMS = [
     type: "group" as const,
     label: "Pipeline",
     children: [
-      { key: "/training", icon: <CloudUploadOutlined />, label: "Upload & Retrain" },
       { key: "/dataset", icon: <BarChartOutlined />, label: "Dataset Insights" },
       { key: "/evaluation", icon: <LineChartOutlined />, label: "Model Metrics" },
     ],

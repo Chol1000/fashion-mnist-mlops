@@ -56,7 +56,7 @@ export default function About() {
                 {
                   title: "Collect",
                   description:
-                    "Labelled CSV rows uploaded through the dashboard are validated, cleaned and written to SQLite — so retraining data accumulates across requests and survives a restart of the training process.",
+                    "Labelled CSV rows uploaded through the API are validated, cleaned and written to SQLite — so retraining data accumulates across requests and survives a restart of the training process.",
                 },
                 {
                   title: "Retrain",
