@@ -21,6 +21,8 @@ COPY src/    /app/src/
 COPY api/    /app/api/
 COPY models/ /app/models/
 COPY data/   /data/
+# EDA and evaluation PNGs, served at /figures for the dashboard's chart pages.
+COPY outputs/figures/ /app/figures/
 
 # Create data directory for SQLite
 RUN mkdir -p /app/api/data

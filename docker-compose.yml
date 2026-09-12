@@ -2,41 +2,50 @@
 # Fashion MNIST MLOps Stack
 # ─────────────────────────────────────────────────────────────────────────────
 # Services:
-#   backend   — FastAPI prediction & retraining API  (port 8000)
-#   frontend  — Streamlit dashboard                   (port 8501)
-#   locust    — Load testing UI                       (port 8089)
+#   nginx     — serves the React dashboard and load balances the API   (port 80)
+#   backend   — FastAPI prediction & retraining API, scalable        (port 8000)
+#   locust    — load testing UI                                      (port 8089)
+#
+# The dashboard and the API share one origin here, exactly as they do in the
+# deployed single-container image — so what you test locally is what ships.
 #
 # Usage:
-#   docker compose up --build            # start all
-#   docker compose up --scale backend=3  # scale API to 3 replicas
+#   docker compose up --build              # start the stack, dashboard on :80
+#   docker compose up --scale backend=3    # three API replicas behind the LB
 # ─────────────────────────────────────────────────────────────────────────────
 
 services:
 
-  # ── Nginx Load Balancer ───────────────────────────────────────────────────
+  # ── Nginx: dashboard + load balancer ──────────────────────────────────────
   nginx:
-    image: nginx:1.27-alpine
+    build:
+      context: .
+      dockerfile: Dockerfile.lb
+    image: fashion-mnist-lb:latest
     container_name: fashion_nginx
     ports:
       - "80:80"
     volumes:
+      # Bind-mounted so routing changes need a restart, not a rebuild.
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       backend:
         condition: service_healthy
     restart: unless-stopped
 
+  # ── FastAPI backend ───────────────────────────────────────────────────────
   backend:
     build:
       context: .
       dockerfile: Dockerfile.api
     image: fashion-mnist-api:latest
     ports:
-      - "8000"          # internal only — allows --scale backend=N without port conflicts
+      - "8000"          # internal only — lets --scale backend=N avoid port conflicts
     volumes:
       - ./data:/data:ro                # dataset CSVs (read-only)
-      - ./models:/app/models           # pre-trained model + metrics (read-write for retrain)
-      - api_db:/app/api/data           # SQLite database (persistent)
+      - ./models:/app/models           # checkpoint + metrics (writable: retraining updates both)
+      - ./outputs/figures:/app/figures:ro
+      - api_db:/app/api/data           # SQLite database, persisted across restarts
     environment:
       - PYTHONUNBUFFERED=1
       - TF_CPP_MIN_LOG_LEVEL=2
@@ -46,26 +55,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 20s
+      start_period: 40s   # the model load has to finish before the first check counts
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    image: fashion-mnist-frontend:latest
-    container_name: fashion_frontend
-    ports:
-      - "8501:8501"
-    volumes:
-      - ./data:/data:ro                # dataset CSVs for "Load Random Sample"
-    environment:
-      - API_URL=http://backend:8000
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-
+  # ── Load testing ──────────────────────────────────────────────────────────
   locust:
     image: locustio/locust:2.31.5
     container_name: fashion_locust
@@ -74,9 +66,11 @@ services:
     volumes:
       - ./locust:/mnt/locust
       - ./data:/mnt/locust/data:ro
-    command: -f /mnt/locust/locustfile.py --host http://backend:8000
+    # Pointed at nginx rather than a single backend, so a run exercises the load
+    # balancer and every replica — which is the whole point of scaling.
+    command: -f /mnt/locust/locustfile.py --host http://nginx
     depends_on:
-      - backend
+      - nginx
     restart: unless-stopped
 
 volumes:

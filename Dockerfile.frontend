@@ -1,29 +1,53 @@
-FROM python:3.11-slim
+# ─────────────────────────────────────────────────────────────────────────────
+# Dashboard only — a static build served by Nginx, with no Python and no model.
+#
+# Use this ONLY if the dashboard has to be deployed separately from the API
+# (two Hugging Face Spaces, say). Understand the trade-off first: the two
+# services then sleep on independent timers, so opening the dashboard finds an
+# API that may still be asleep. The dashboard handles that gracefully — it
+# shows a wake-up screen and keeps knocking until the API answers — but the
+# single-container root Dockerfile avoids the situation entirely and is the
+# recommended deployment.
+#
+# VITE_API_BASE must point at the API origin, or every request 404s against
+# Nginx instead of reaching the API.
+# ─────────────────────────────────────────────────────────────────────────────
 
-LABEL maintainer="Fashion MNIST MLOps"
-LABEL description="Streamlit frontend for Fashion MNIST MLOps dashboard"
+FROM node:20-slim AS build
+WORKDIR /build
 
-WORKDIR /app
+COPY frontend/package*.json ./
+RUN npm ci
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        curl \
-    && rm -rf /var/lib/apt/lists/*
+COPY frontend/ ./
+ARG VITE_API_BASE
+ARG VITE_SPACE_URL=""
+ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_SPACE_URL=$VITE_SPACE_URL
+RUN npm run build
 
-COPY frontend/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir --upgrade pip \
- && pip install --no-cache-dir -r requirements.txt
 
-COPY frontend/          /app/
-COPY outputs/figures/  /app/figures/
-COPY data/test/        /data/test/
+FROM nginx:1.27-alpine
 
-EXPOSE 8501
+# Spaces expose a single port from the README frontmatter; 7860 is the default
+# there and harmless anywhere else.
+RUN sed -i 's/listen       80;/listen       7860;/' /etc/nginx/conf.d/default.conf
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+# Client-side routing: /classify and /evaluation have no file behind them, so
+# anything that isn't a real asset has to fall through to index.html or a
+# refresh on a deep link 404s.
+RUN printf '%s\n' \
+    'location / {' \
+    '    root /usr/share/nginx/html;' \
+    '    try_files $uri $uri/ /index.html;' \
+    '}' > /etc/nginx/conf.d/spa.conf \
+ && sed -i '/location \/ {/,/}/d' /etc/nginx/conf.d/default.conf \
+ && sed -i '/server_name  localhost;/r /etc/nginx/conf.d/spa.conf' /etc/nginx/conf.d/default.conf \
+ && rm /etc/nginx/conf.d/spa.conf
 
-CMD ["streamlit", "run", "app.py", \
-     "--server.port=8501", \
-     "--server.address=0.0.0.0", \
-     "--server.headless=true", \
-     "--browser.gatherUsageStats=false"]
+COPY --from=build /build/dist /usr/share/nginx/html
+
+EXPOSE 7860
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q --spider http://localhost:7860/ || exit 1

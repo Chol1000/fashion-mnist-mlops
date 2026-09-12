@@ -16,17 +16,19 @@ pinned: false
 ![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-2.17-orange?logo=tensorflow)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green?logo=fastapi)
-![Streamlit](https://img.shields.io/badge/Streamlit-1.39-red?logo=streamlit)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
+![Ant Design](https://img.shields.io/badge/Ant%20Design-6-0170fe?logo=antdesign)
 ![Docker](https://img.shields.io/badge/Docker-Containerised-blue?logo=docker)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Deployed-yellow?logo=huggingface)
 
 | Resource | Description | Link |
 |----------|-------------|------|
 | Video Demo | Full walkthrough — prediction, retraining, deployment (camera on) | [Watch on YouTube](https://youtu.be/Nw2GPJmoh20) |
-| Live Dashboard | Streamlit UI — predict, retrain, view metrics and insights | [Open Dashboard](https://huggingface.co/spaces/CholatemGiet/fashion-mnist-frontend) |
-| Live API | FastAPI backend hosted on Hugging Face Spaces | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space) |
+| Live Dashboard | React dashboard — classify, retrain, inspect metrics and dataset | [Open Dashboard](https://cholatemgiet-fashion-mnist-api.hf.space) |
+| Live API | FastAPI backend — same container as the dashboard | [Open API](https://cholatemgiet-fashion-mnist-api.hf.space/info) |
 | API Docs | Swagger UI — test all endpoints directly in the browser | [Open Swagger](https://cholatemgiet-fashion-mnist-api.hf.space/docs) |
-| GitHub | Full source code — notebook, API, frontend, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
+| GitHub | Full source code — notebook, API, dashboard, Docker, Locust | [View on GitHub](https://github.com/Chol1000/fashion-mnist-mlops) |
+| Deployment | How it ships, and why the API no longer sleeps | [deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md) |
 
 </div>
 
@@ -37,6 +39,8 @@ pinned: false
 - [Project Overview](#project-overview)
 - [Repository Structure](#repository-structure)
 - [Quick Start](#quick-start)
+- [The Dashboard](#the-dashboard)
+- [Deployment](#deployment)
 - [Training the Model](#training-the-model)
 - [Model Architecture & Performance](#model-architecture--performance)
 - [Dataset Visualisations](#dataset-visualisations)
@@ -52,7 +56,9 @@ pinned: false
 
 This project implements a production-grade MLOps pipeline for classifying clothing images using the **Fashion MNIST** dataset — 70,000 greyscale 28×28 images across 10 balanced clothing categories.
 
-The pipeline covers the full ML lifecycle: data acquisition and preprocessing, model training with transfer learning, API serving, interactive dashboard, database-backed retraining, Docker containerisation, and cloud deployment on Hugging Face Spaces. Load testing with Locust validates the system under concurrent traffic.
+The pipeline covers the full ML lifecycle: data acquisition and preprocessing, model training with transfer learning, API serving, an interactive dashboard, database-backed retraining, Docker containerisation, and cloud deployment on Hugging Face Spaces. Load testing with Locust validates the system under concurrent traffic.
+
+The dashboard and the API ship as **one container**: Vite builds the React frontend and FastAPI serves it alongside its own routes. That is a deliberate choice rather than a convenience — see [Deployment](#deployment).
 
 **Model:** MobileNetV2 pre-trained on ImageNet, fine-tuned on Fashion MNIST. Input images are resized from 28×28 to 128×128×3 before inference.
 
@@ -77,9 +83,22 @@ fashion-mnist-mlops/
 │   ├── database.py                  # SQLite — uploaded samples and retrain logs
 │   └── requirements.txt
 │
-├── frontend/
-│   ├── app.py                       # Streamlit dashboard
-│   └── requirements.txt
+├── frontend/                        # React 19 + Vite + Ant Design dashboard
+│   ├── src/
+│   │   ├── pages/                   # Overview, Classify, Retrain, Insights, Metrics, System, About
+│   │   ├── components/              # Layout, wake-up gate, draw pad, result panels
+│   │   ├── context/                 # Theme (light/dark) and backend health polling
+│   │   ├── api.ts                   # Typed client for every endpoint
+│   │   └── ui.tsx                   # Shared design primitives
+│   ├── index.html
+│   └── package.json
+│
+├── deploy/
+│   ├── DEPLOYMENT.md                # How it ships, and the sleeping-Space fix
+│   └── space-README*.md             # Hugging Face Space frontmatter templates
+│
+├── .github/workflows/
+│   └── keep-spaces-awake.yml        # Scheduled ping + restart so the API never sleeps
 │
 ├── locust/
 │   ├── locustfile.py                # Load testing scenarios
@@ -95,10 +114,12 @@ fashion-mnist-mlops/
 │   └── training_metrics.json        # Saved evaluation metrics
 │
 ├── outputs/figures/                 # EDA plots, training curves, confusion matrix
-├── nginx.conf                       # Nginx load balancer config
-├── docker-compose.yml               # Full stack: api, frontend, locust, nginx
-├── Dockerfile.api                   # API container
-├── Dockerfile.frontend              # Frontend container
+├── nginx.conf                       # Serves the dashboard, load balances the API
+├── docker-compose.yml               # Full stack: nginx, backend replicas, locust
+├── Dockerfile                       # Deployed image — dashboard + API in one container
+├── Dockerfile.api                   # API only, used for the scalable Compose backend
+├── Dockerfile.lb                    # Nginx + built dashboard, the Compose edge
+├── Dockerfile.frontend              # Dashboard only (separate-deployment option)
 └── run_local.sh                     # One-command local start without Docker
 ```
 
@@ -117,10 +138,13 @@ docker compose up --build
 ```
 
 Once running, open:
-- **Dashboard:** http://localhost:8501
-- **API:** http://localhost:8000
-- **API Docs:** http://localhost:8000/docs
+- **Dashboard:** http://localhost
+- **API:** http://localhost/health — same origin as the dashboard
+- **API Docs:** http://localhost/docs
 - **Locust UI:** http://localhost:8089
+
+Nginx serves the built dashboard and proxies the API paths to the backend pool,
+so the browser sees a single origin — the same shape as the deployed image.
 
 To scale the API across multiple replicas:
 ```bash
@@ -135,18 +159,100 @@ cd fashion-mnist-mlops
 bash run_local.sh
 ```
 
+`run_local.sh` starts the API and the dashboard's dev server with hot reload.
+Pass `--build` to build the dashboard instead and have FastAPI serve it, which
+is exactly what the deployed container does:
+
+```bash
+bash run_local.sh --build     # everything on http://localhost:8000
+```
+
 ### Option C — Manual Setup
 
 ```bash
 python3.11 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r api/requirements.txt
 
 # Terminal 1 — API
 PYTHONPATH=. uvicorn api.main:app --host 0.0.0.0 --port 8000
 
-# Terminal 2 — Frontend
-API_URL=http://localhost:8000 streamlit run frontend/app.py --server.port 8501
+# Terminal 2 — dashboard (Node 20+)
+cd frontend && npm install && npm run dev
+```
+
+The dev server proxies the API paths to port 8000; set `VITE_API_TARGET` if the
+API is bound somewhere else.
+
+> On Apple Silicon, `tensorflow-cpu` has no wheels — install `tensorflow==2.17.0`
+> instead. `run_local.sh` does this substitution automatically.
+
+---
+
+## The Dashboard
+
+Seven pages, built with React 19, Ant Design and Recharts. Light and dark themes
+follow the system preference and can be toggled from the header. Everything on
+every page is a live call against the running API — nothing is mocked.
+
+| Page | What it does |
+|------|--------------|
+| **Overview** | Headline accuracy and F1 of whatever model is currently live, per-class F1, the training curve, and a jump-off into the rest. Shows a comparison banner when the model has been fine-tuned since the baseline. |
+| **Classify** | Four ways to get an image in: upload a photo, pull a random held-out test image (with its true label, so you can see whether the model was right), draw a garment on a canvas, or paste 784 raw pixel values. Every result shows the full 10-class probability distribution, not just the winner. |
+| **Upload & Retrain** | The complete loop — upload a labelled CSV into SQLite, watch it validated and previewed, then fine-tune the model and follow each pipeline step and epoch as they land. Includes a sample-CSV generator so the loop can be exercised without hunting for data. |
+| **Dataset Insights** | Class balance, pixel-intensity distributions, per-class sample images and the preprocessing pipeline. |
+| **Model Metrics** | Architecture and training configuration, baseline test-set scores, per-class precision/recall/F1, the confusion matrix, and the full 30-epoch history. |
+| **API & System** | Live health, deployment topology, retraining state, and the endpoint reference. |
+| **About** | How the pieces fit together. |
+
+### Two details worth knowing
+
+**The model is closed-set.** It emits a softmax over exactly ten garment
+classes, with no "none of these" option. Upload a photo of a car and it will not
+refuse — it will return one of the ten labels, sometimes at 90%+ confidence. The
+Classify page says so before you upload, because a confident answer is not
+evidence that the input was a garment.
+
+**Dashboard routes avoid API routes.** Both live at the root of the same origin,
+so the pages are at `/classify`, `/training`, `/dataset`, `/evaluation`,
+`/status` and `/about` — not `/predict` or `/metrics`, which would have been
+shadowed by the endpoints of the same name and returned JSON on every refresh or
+shared link.
+
+---
+
+## Deployment
+
+Full detail in **[deploy/DEPLOYMENT.md](deploy/DEPLOYMENT.md)**. The short
+version:
+
+A free Hugging Face CPU Space sleeps after 48 hours without traffic, and waking
+it costs 60–90 seconds while the container boots and TensorFlow loads the model.
+When the dashboard and the API were **separate Spaces**, opening the dashboard
+woke only the dashboard — the API had its own idle timer and was still asleep,
+which is why every panel failed and the API Space had to be restarted by hand.
+
+Three changes fix it, and they stack:
+
+1. **One container.** The root `Dockerfile` builds the dashboard and has FastAPI
+   serve it alongside its own routes. One Space, one URL, one idle timer — if
+   the page loads, the API behind it is already running.
+2. **Scheduled pings.** `.github/workflows/keep-spaces-awake.yml` calls
+   `/health` every 20 minutes, so the 48-hour idle timer never expires and
+   nobody pays a cold start. No secrets required.
+3. **Automatic restart.** A ping wakes a *sleeping* Space but can do nothing for
+   a *paused* or crashed one. Add an `HF_TOKEN` repository secret and the same
+   workflow calls the Hub's restart endpoint when a ping fails.
+
+And if a visitor still arrives mid-wake — right after a rebuild, say — the
+dashboard opens on a wake-up screen that explains what is happening, retries
+every four seconds (which is itself what wakes the Space), and offers a manual
+restart link if it drags on. It blocks only the first connection of a session.
+
+```bash
+# Deploy: the Space builds the root Dockerfile
+git remote add space https://huggingface.co/spaces/CholatemGiet/fashion-mnist-api
+git push space main
 ```
 
 ---
@@ -234,16 +340,31 @@ Averaging all images per class reveals each garment's archetypal shape — Bags 
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/` | Service information and uptime |
+| GET | `/` | The dashboard (JSON service info moved to `/info`) |
+| GET | `/info` | Service name, version and uptime |
 | GET | `/health` | Model readiness and database stats |
 | POST | `/predict` | Predict from 784 raw pixel values |
-| POST | `/predict/image` | Predict from uploaded PNG/JPG image |
+| POST | `/predict/image` | Predict from an uploaded PNG/JPG/WebP/AVIF image |
+| GET | `/sample/random` | A random held-out test image, optionally filtered by class |
+| GET | `/sample/csv` | Download a correctly-shaped slice of the dataset |
 | POST | `/upload-data` | Upload labelled CSV for retraining |
 | POST | `/retrain` | Trigger fine-tuning on uploaded data |
 | GET | `/retrain/status` | Poll live training progress |
 | GET | `/retrain/history` | Past retraining run logs |
+| DELETE | `/uploaded-data` | Clear stored samples |
 | GET | `/metrics` | Model evaluation metrics |
 | GET | `/insights` | Dataset statistics and class distribution |
+| GET | `/figures/*` | EDA and evaluation PNGs from the training run |
+
+Endpoints live at the **root** of the origin — there is no `/api` prefix — which
+is why the dashboard's own pages are named `/classify`, `/evaluation` and so on
+rather than `/predict` and `/metrics`. In an API-only image (`Dockerfile.api`)
+`/` keeps its original JSON payload, since there is no dashboard to serve.
+
+`/sample/random` and `/sample/csv` are new: the dashboard used to ship the whole
+10,000-row test CSV to the browser so it could pick a random image client-side.
+Serving one row from the API instead keeps the dataset on the server, where it
+already lives for training.
 
 Full interactive docs: https://cholatemgiet-fashion-mnist-api.hf.space/docs
 
@@ -251,14 +372,16 @@ Full interactive docs: https://cholatemgiet-fashion-mnist-api.hf.space/docs
 
 ## Retraining Workflow
 
-1. Open the **Upload & Retrain** tab in the dashboard
+1. Open the **Upload & Retrain** page in the dashboard (`/training`)
 2. Upload a CSV with columns: `label, pixel1, pixel2, ..., pixel784`
 3. Samples are validated, cleaned, and stored in SQLite
 4. Click **Start Retraining** — the model is fine-tuned using Adam lr=1e-4
 5. Live epoch progress is streamed during training
 6. Updated metrics are logged to the database and displayed in the dashboard
 
-A ready-to-use sample file is included at `data/sample_retrain.csv` — 100 randomly sampled rows from the Fashion MNIST test set in the correct format.
+A ready-to-use sample file is included at `data/sample_retrain.csv` — 100 randomly sampled rows from the Fashion MNIST test set in the correct format. The page can also generate one on demand at any size via `GET /sample/csv`, so the loop can be exercised without hunting for data.
+
+The CSV is validated twice: the browser previews the rows, the class distribution and the column count before you upload, and the API re-validates and cleans independently. What neither can catch is a *mislabelled* row — the shape can be perfect while the label is wrong, and fine-tuning on wrong labels makes the model measurably worse.
 
 ---
 

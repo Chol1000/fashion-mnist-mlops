@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Nginx edge for the local Compose stack: serves the built dashboard as static
+# files and proxies the API paths to the backend replica pool.
+#
+# Same-origin by construction, which is what makes `docker compose up --scale
+# backend=3` a faithful rehearsal of production: the browser sees one origin,
+# the dashboard needs no API base URL, and every API call is load balanced.
+# ─────────────────────────────────────────────────────────────────────────────
+
+FROM node:20-slim AS build
+WORKDIR /build
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM nginx:1.27-alpine
+COPY --from=build /build/dist /usr/share/nginx/html
+# nginx.conf is bind-mounted by docker-compose so it can be edited without a
+# rebuild; this copy is the fallback for running the image on its own.
+COPY nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80

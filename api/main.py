@@ -12,6 +12,10 @@ Endpoints:
     GET  /retrain/history   Past retraining run logs
     GET  /metrics           Model evaluation metrics
     GET  /insights          Dataset statistics
+    GET  /sample/random     Random held-out test image
+    GET  /sample/csv        Downloadable slice of the dataset, upload-ready
+    GET  /figures/*         EDA and evaluation figures from the training run
+    GET  /*                 The React dashboard, when a build is present
 """
 
 from __future__ import annotations
@@ -19,15 +23,19 @@ from __future__ import annotations
 import io
 import json
 import logging
+import random
 import sys
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
 import pandas as pd
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 # ── Path setup ────────────────────────────────────────────────────────────────
@@ -133,8 +141,14 @@ class UploadResponse(BaseModel):
 
 
 # ── Health & Status ───────────────────────────────────────────────────────────
-@app.get("/", tags=["Health"])
 def root():
+    """Service name, version and uptime.
+
+    Not decorated here: whether "/" serves this JSON or the dashboard depends
+    on whether a frontend build was bundled into the image, so the route is
+    registered at the bottom of this file once that is known. It is always
+    reachable at /info regardless.
+    """
     return {
         "status":      "ok",
         "service":     "Fashion MNIST MLOps API",
@@ -462,3 +476,164 @@ def get_insights():
         "model_ready":         predictor.model_ready,
         "uptime_sec":          round(time.time() - _start_time, 1),
     }
+
+
+# ── Dataset samples ───────────────────────────────────────────────────────────
+# The dashboard used to ship the 10,000-row test CSV to the browser so it could
+# pick a random image client-side. Serving one row from here instead keeps the
+# dataset on the server, where it already lives for training.
+
+def _dataset_path(split: str) -> Optional[Path]:
+    """Locate a dataset CSV, preferring the Docker mount over the repo copy."""
+    name = f"fashion-mnist_{split}.csv"
+    for candidate in (Path("/data") / split / name, ROOT / "data" / split / name):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+@lru_cache(maxsize=1)
+def _test_set() -> Optional[pd.DataFrame]:
+    """
+    The held-out test split, cached for the process lifetime.
+
+    Read as uint8 rather than pandas' default int64: the same 10,000x785 table
+    is ~8 MB instead of ~63 MB, which matters on a 512 MB free tier that is
+    already holding TensorFlow and the model weights.
+    """
+    path = _dataset_path("test")
+    if path is None:
+        return None
+    dtypes = {c: "uint8" for c in PIXEL_COLUMNS}
+    dtypes["label"] = "uint8"
+    return pd.read_csv(path, dtype=dtypes)
+
+
+@app.get("/sample/random", tags=["Dataset"])
+def random_sample(
+    label: Optional[int] = Query(
+        None, ge=0, le=NUM_CLASSES - 1, description="Restrict to one class (0-9)"
+    )
+):
+    """
+    Return one random image from the held-out test split.
+
+    Because the model never saw this split during training, the caller can
+    compare the prediction against `label_name` and get an honest read on
+    whether it was right.
+    """
+    df = _test_set()
+    if df is None:
+        raise HTTPException(503, "Test dataset is not available in this deployment")
+
+    subset = df if label is None else df[df["label"] == label]
+    if len(subset) == 0:
+        raise HTTPException(404, f"No test samples found for class {label}")
+
+    row = subset.iloc[random.randrange(len(subset))]
+    idx = int(row["label"])
+    return {
+        "label":      idx,
+        "label_name": CLASS_NAMES[idx],
+        "pixels":     [int(v) for v in row[PIXEL_COLUMNS].to_numpy()],
+    }
+
+
+@app.get("/sample/csv", tags=["Dataset"])
+def sample_csv(
+    n: int = Query(300, ge=10, le=5000, description="Number of rows to return"),
+    split: str = Query("train", pattern="^(train|test)$"),
+):
+    """
+    Download a correctly-shaped slice of the dataset, ready to upload to
+    `/upload-data`.
+
+    Exists so the retraining loop can be exercised without first having to find
+    or hand-build a 785-column CSV — the shape is the part people get wrong.
+    """
+    path = _dataset_path(split)
+    if path is None:
+        # The training CSV is large and some deployments ship only the test
+        # split; fall back rather than failing, since for this purpose either
+        # split demonstrates the same thing.
+        path = _dataset_path("test")
+    if path is None:
+        raise HTTPException(503, "No dataset CSV is available in this deployment")
+
+    dtypes = {c: "uint8" for c in PIXEL_COLUMNS}
+    dtypes["label"] = "uint8"
+    df = pd.read_csv(path, dtype=dtypes)
+    sample = df.sample(min(n, len(df)))
+
+    buf = io.StringIO()
+    sample.to_csv(buf, index=False)
+    buf.seek(0)
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="fashion_mnist_sample_{len(sample)}.csv"'},
+    )
+
+
+# ── Static assets & dashboard ─────────────────────────────────────────────────
+# Everything below is mounted last on purpose: the catch-all route has to be
+# declared after every real API route, because FastAPI resolves routes in
+# declaration order and a catch-all declared earlier would swallow them.
+
+_FIGURES_DIR = next(
+    (p for p in (Path("/app/figures"), ROOT / "outputs" / "figures") if p.is_dir()),
+    None,
+)
+if _FIGURES_DIR is not None:
+    # EDA and evaluation PNGs produced by the training notebook. Served from
+    # the API rather than bundled into the frontend so they stay in step with
+    # whatever checkpoint is in models/.
+    app.mount("/figures", StaticFiles(directory=str(_FIGURES_DIR)), name="figures")
+    log.info("Serving figures from %s", _FIGURES_DIR)
+
+_FRONTEND_DIST = next(
+    (p for p in (Path("/app/frontend/dist"), ROOT / "frontend" / "dist") if (p / "index.html").is_file()),
+    None,
+)
+# /info is the stable home for the service blurb in both shapes, so anything
+# scripted against it keeps working whether or not the dashboard is bundled.
+app.get("/info", tags=["Health"])(root)
+
+if _FRONTEND_DIST is None:
+    # API-only image (Dockerfile.api, or a dev checkout with no `npm run
+    # build`): "/" keeps its original JSON payload.
+    app.get("/", tags=["Health"])(root)
+else:
+    log.info("Serving dashboard from %s", _FRONTEND_DIST)
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    def dashboard_index():
+        """The dashboard replaces the JSON service blurb at the root.
+
+        The blurb is still reachable at /info, and /health is the endpoint the
+        load tests and container healthcheck actually use — neither depends on
+        what "/" returns.
+        """
+        return FileResponse(str(_FRONTEND_DIST / "index.html"))
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    def spa_fallback(full_path: str):
+        """Hand any unmatched path to the React app.
+
+        Routing is client-side, so /predict-page style deep links exist only
+        once index.html has loaded — there is no file behind them, and a plain
+        StaticFiles mount would 404 on every refresh away from the root. Serve
+        a real file when one exists, and index.html otherwise so the router can
+        take over.
+        """
+        candidate = (_FRONTEND_DIST / full_path).resolve()
+        # `full_path` is caller-controlled; without this containment check a
+        # `../` sequence would escape the build directory.
+        if (
+            full_path
+            and _FRONTEND_DIST.resolve() in candidate.parents
+            and candidate.is_file()
+        ):
+            return FileResponse(str(candidate))
+        return FileResponse(str(_FRONTEND_DIST / "index.html"))

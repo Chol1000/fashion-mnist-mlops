@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fashion MNIST MLOps</title>
+    <meta
+      name="description"
+      content="Prediction, retraining and monitoring dashboard for the Fashion MNIST MobileNetV2 classifier."
+    />
+    <script>
+      // Applied before React mounts so there's no flash of the wrong theme.
+      (function () {
+        try {
+          var stored = localStorage.getItem("fmnist-theme");
+          if (stored === "light" || stored === "dark") {
+            document.documentElement.setAttribute("data-theme", stored);
+          }
+        } catch (e) {}
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

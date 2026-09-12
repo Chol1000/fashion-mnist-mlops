@@ -1,4 +1,5 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -6,3 +7,13 @@ __pycache__/
 .gitignore
 outputs/locust/
 api/data/fashion_data.db
+
+# The image builds the dashboard itself in its own stage — shipping a local
+# node_modules would bloat the context by hundreds of megabytes, and shipping a
+# local dist risks baking a stale build into the image.
+frontend/node_modules/
+frontend/dist/
+
+# Load-test artefacts and the notebook are documentation, not runtime inputs.
+locust/results/
+notebook/

@@ -1,0 +1,132 @@
+import type {
+  Health, Insights, Metrics, PredictResult, RandomSample,
+  RetrainHistoryRow, RetrainStatus, UploadResponse,
+} from "./types";
+
+/**
+ * Where the FastAPI backend lives.
+ *
+ * Three deployment shapes have to work off one build:
+ *   1. Single container (the recommended Space) — FastAPI serves this bundle
+ *      itself, so same-origin "" is correct and nothing needs configuring.
+ *   2. `npm run dev` — Vite proxies the API paths (see vite.config.ts), so
+ *      same-origin is correct there too.
+ *   3. Dashboard deployed apart from the API (two Spaces) — the API origin is
+ *      baked in at build time with VITE_API_BASE, or patched at runtime by
+ *      dropping a `config.js` next to index.html that sets window.__API_BASE__.
+ *      The runtime hook exists so the static bundle can be repointed at a
+ *      different API without a rebuild.
+ */
+declare global {
+  interface Window {
+    __API_BASE__?: string;
+  }
+}
+
+export const API_BASE: string = (
+  window.__API_BASE__ ??
+  (import.meta.env.VITE_API_BASE as string | undefined) ??
+  ""
+).replace(/\/$/, "");
+
+/** True when the API is a different origin — i.e. it can be asleep independently
+ *  of the page the user just loaded. Drives the wake-up screen's wording. */
+export const API_IS_REMOTE = API_BASE !== "";
+
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Pull FastAPI's `detail` out of an error body — it carries the actual
+ *  validation message, which is far more useful than "HTTP 400". */
+async function toError(res: Response): Promise<ApiError> {
+  let detail = `HTTP ${res.status}`;
+  try {
+    const body = await res.json();
+    if (typeof body?.detail === "string") detail = body.detail;
+    else if (Array.isArray(body?.detail)) detail = body.detail.map((d: { msg?: string }) => d.msg).join("; ");
+  } catch {
+    /* non-JSON error body (an nginx 502 page, say) — keep the status text */
+  }
+  return new ApiError(detail, res.status);
+}
+
+async function request<T>(path: string, init?: RequestInit, timeoutMs = 60_000): Promise<T> {
+  // A sleeping Space accepts the connection and then holds it while the
+  // container boots, so a request without a deadline can hang for minutes.
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, { ...init, signal: ctl.signal });
+    if (!res.ok) throw await toError(res);
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError("Request timed out — the API may still be starting up.", 0);
+    }
+    throw new ApiError("Cannot reach the API.", 0);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const getJSON = <T>(path: string, timeoutMs?: number) => request<T>(path, undefined, timeoutMs);
+
+const postJSON = <T>(path: string, body: unknown, timeoutMs?: number) =>
+  request<T>(
+    path,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    timeoutMs
+  );
+
+const postFile = <T>(path: string, file: File | Blob, filename: string, timeoutMs?: number) => {
+  const form = new FormData();
+  form.append("file", file, filename);
+  return request<T>(path, { method: "POST", body: form }, timeoutMs);
+};
+
+export const api = {
+  /** Short timeout on purpose: this is the liveness probe the wake-up screen
+   *  and the header dot poll, and a slow answer is itself the signal. */
+  health: (timeoutMs = 12_000) => getJSON<Health>("/health", timeoutMs),
+
+  insights: () => getJSON<Insights>("/insights"),
+  metrics: () => getJSON<Metrics>("/metrics"),
+
+  predictPixels: (pixels: number[]) => postJSON<PredictResult>("/predict", { pixels }, 120_000),
+  predictImage: (file: File) => postFile<PredictResult>("/predict/image", file, file.name, 120_000),
+
+  randomSample: (label?: number) =>
+    getJSON<RandomSample>(`/sample/random${label === undefined ? "" : `?label=${label}`}`),
+
+  sampleCsvUrl: (n: number, split: "train" | "test" = "train") =>
+    `${API_BASE}/sample/csv?n=${n}&split=${split}`,
+
+  uploadData: (file: File) => postFile<UploadResponse>("/upload-data", file, file.name, 180_000),
+
+  clearUploaded: () =>
+    request<{ message: string; remaining: number }>("/uploaded-data", { method: "DELETE" }),
+
+  startRetrain: (epochs: number, batch_size: number, clear_after: boolean) =>
+    postJSON<{ message: string; samples: number; status: string }>("/retrain", {
+      epochs,
+      batch_size,
+      clear_after,
+    }),
+
+  retrainStatus: () => getJSON<RetrainStatus>("/retrain/status", 20_000),
+
+  retrainHistory: (limit = 20) =>
+    getJSON<{ history: RetrainHistoryRow[] }>(`/retrain/history?limit=${limit}`),
+
+  /** EDA figures are static PNGs served by the API, not bundled assets —
+   *  they're regenerated by the training notebook. */
+  figure: (name: string) => `${API_BASE}/figures/${name}`,
+
+  docsUrl: () => `${API_BASE}/docs`,
+};

@@ -1,0 +1,107 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Keeps the Hugging Face Spaces from going to sleep.
+#
+# A free CPU Space sleeps after 48 hours without traffic and only wakes on the
+# next request — which means the unlucky visitor who arrives first pays a
+# 60–90 second cold start while the container boots and TensorFlow loads the
+# model. Pinging /health on a schedule means that 48-hour idle timer never runs
+# out, so there is no cold start for anyone to pay.
+#
+# Two levels, in order of how much they need from you:
+#   1. Ping   — no secrets required, prevents sleep. This is the real fix.
+#   2. Restart — needs an HF_TOKEN secret, and recovers a Space that is PAUSED
+#                or has crashed, which a ping cannot do.
+#
+# Setup:
+#   • Nothing, for the ping. It works as soon as this file is on the default
+#     branch — edit SPACES below if your Space URLs differ.
+#   • For restarts: Settings → Secrets and variables → Actions → New secret,
+#     named HF_TOKEN, holding a Hugging Face access token with write access to
+#     the Spaces. Without it the restart step is skipped, not failed.
+#
+# Caveat worth knowing: GitHub disables scheduled workflows in a repository
+# with no commits for 60 days, and emails you when it does. Pushing anything
+# re-enables it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Keep Spaces awake
+
+on:
+  schedule:
+    # Every 20 minutes. Well inside the 48-hour idle window even if GitHub
+    # delays a run under load, which it sometimes does for scheduled jobs.
+    - cron: "*/20 * * * *"
+  workflow_dispatch:        # so you can also hit it by hand after a deploy
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    strategy:
+      # One Space failing should not stop the others from being pinged.
+      fail-fast: false
+      matrix:
+        space:
+          - name: fashion-mnist-api
+            repo: CholatemGiet/fashion-mnist-api
+            url: https://cholatemgiet-fashion-mnist-api.hf.space
+          - name: fashion-mnist-frontend
+            repo: CholatemGiet/fashion-mnist-frontend
+            url: https://cholatemgiet-fashion-mnist-frontend.hf.space
+
+    steps:
+      - name: Ping ${{ matrix.space.name }}
+        id: ping
+        run: |
+          URL="${{ matrix.space.url }}/health"
+          echo "Pinging $URL"
+
+          # A sleeping Space accepts the connection and then holds it open for
+          # the length of the cold start, so the timeout has to be generous —
+          # a short one would give up exactly when the wake-up is working.
+          # --retry covers the window where the container is up but uvicorn
+          # has not bound the port yet.
+          if curl --silent --show-error --fail \
+                  --max-time 180 \
+                  --retry 4 --retry-delay 20 --retry-all-errors \
+                  --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+                  "$URL"; then
+            echo "awake=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "awake=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::${{ matrix.space.name }} did not answer /health"
+          fi
+
+      # Only reached when the ping failed. A ping wakes a *sleeping* Space on
+      # its own; it cannot do anything for one that is PAUSED, has hit a build
+      # error, or has crashed on startup — those need an explicit restart
+      # through the Hub API.
+      - name: Restart ${{ matrix.space.name }} if it stayed down
+        if: steps.ping.outputs.awake == 'false'
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_TOKEN" ]; then
+            echo "No HF_TOKEN secret set — cannot restart automatically."
+            echo "Add one (Hugging Face token with write access) to enable this step."
+            exit 0
+          fi
+
+          echo "Requesting restart of ${{ matrix.space.repo }}"
+          CODE=$(curl --silent --output /tmp/restart.json --write-out '%{http_code}' \
+            -X POST \
+            -H "Authorization: Bearer $HF_TOKEN" \
+            "https://huggingface.co/api/spaces/${{ matrix.space.repo }}/restart")
+
+          echo "Restart API returned HTTP $CODE"
+          cat /tmp/restart.json || true
+
+          # 401/403 means the token is missing the right scope — worth failing
+          # loudly, because the workflow would otherwise look healthy while
+          # silently never recovering anything.
+          if [ "$CODE" = "401" ] || [ "$CODE" = "403" ]; then
+            echo "::error::HF_TOKEN is not authorised to restart ${{ matrix.space.repo }}"
+            exit 1
+          fi

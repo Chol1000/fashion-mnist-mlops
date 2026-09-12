@@ -11,8 +11,10 @@ uvicorn[standard]==0.30.6
 python-multipart==0.0.9
 pydantic==2.9.2
 
-# ── Frontend ──────────────────────────────────────────────────────────────────
-streamlit==1.39.0
+# ── Notebook / figure generation ──────────────────────────────────────────────
+# The dashboard is a React app built with npm (see frontend/), so nothing here
+# serves the UI. matplotlib and seaborn render the EDA and evaluation figures
+# that the training notebook writes to outputs/figures and the API serves.
 requests==2.32.3
 matplotlib==3.9.2
 seaborn==0.13.2

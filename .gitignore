@@ -10,6 +10,12 @@ build/
 
 # Virtual environment
 venv/
+.venv/
+
+# Dashboard build artefacts — the Docker image builds `dist` in its own
+# stage, so a committed copy would only ever be stale.
+node_modules/
+frontend/dist/
 
 # Database (generated at runtime)
 api/data/*.db
