@@ -162,6 +162,9 @@ def health():
     return {
         "status":        "ok",
         "model_ready":   predictor.model_ready,
+        # Distinguishes "the checkpoint was never shipped" from "it is there
+        # and TensorFlow failed to load it" — identical symptoms otherwise.
+        "model_file":    predictor.model_file_present,
         "uptime_sec":    round(time.time() - _start_time, 1),
         "db_samples":    db.count_uploaded_samples(),
     }

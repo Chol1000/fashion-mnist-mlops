@@ -56,6 +56,27 @@ class Predictor:
 
     @property
     def model_ready(self) -> bool:
+        """True once the model is in memory and can actually serve a prediction.
+
+        This used to report `self._model_path.exists()`, which is a different
+        claim: the file being on disk says nothing about whether TensorFlow
+        managed to load it. The API's startup hook catches and logs a failed
+        load rather than crashing, so a container in exactly that state was
+        reporting model_ready=true from /health while every prediction
+        returned a 500 — and the dashboard's header badge read "model loaded"
+        on the strength of it. The file existing is a precondition, not
+        readiness.
+        """
+        return self._model is not None
+
+    @property
+    def model_file_present(self) -> bool:
+        """Whether the checkpoint exists on disk at all.
+
+        Separated out so /health can distinguish "the weights were never
+        shipped into this image" from "they are there and failed to load" —
+        two very different problems that look identical from the outside.
+        """
         return self._model_path.exists()
 
     # ── Core inference ────────────────────────────────────────────────────────

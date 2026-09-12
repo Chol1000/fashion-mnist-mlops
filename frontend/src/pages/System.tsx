@@ -73,9 +73,22 @@ export default function System() {
         />
         <StatCard
           label="Model"
-          value={health?.model_ready ? "Loaded" : "Not loaded"}
+          value={
+            health?.model_ready
+              ? "Loaded"
+              : health?.model_file === false
+                ? "Missing"
+                : "Failed to load"
+          }
           icon={<CloudServerOutlined />}
-          hint="Whether the MobileNetV2 checkpoint is present and loadable. The first prediction after a cold start also pays the TensorFlow import cost."
+          color={health?.model_ready ? undefined : "#cf1322"}
+          hint={
+            health?.model_ready
+              ? "The MobileNetV2 weights are in memory and can serve a prediction right now."
+              : health?.model_file === false
+                ? "No checkpoint at models/fashion_model.h5 — it was never shipped into this image."
+                : "The checkpoint is on disk but TensorFlow could not load it. Check the container logs."
+          }
         />
         <StatCard
           label="Uptime"

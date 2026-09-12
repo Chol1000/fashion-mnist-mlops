@@ -7,7 +7,11 @@ export type ClassName = (typeof CLASS_NAMES)[number];
 
 export interface Health {
   status: string;
+  /** The model is in memory and can serve a prediction right now. */
   model_ready: boolean;
+  /** The checkpoint exists on disk. Distinguishes a missing file from one
+   *  that is present but failed to load. Absent on older API builds. */
+  model_file?: boolean;
   uptime_sec: number;
   db_samples: number;
 }
