@@ -77,16 +77,25 @@ because by then there is work on screen worth keeping.
 
 ## Deploying the single container
 
-The Space repository needs its `README.md` to carry Docker SDK frontmatter.
-Copy `deploy/space-README.md` to `README.md` **in the Space repo** (not in this
-one) and push the project alongside it:
+```bash
+bash deploy/push-to-space.sh
+```
+
+That is the whole deploy. The script fetches the Space, makes its tree match
+your current branch, and pushes — as a child of the Space's own HEAD, so it
+fast-forwards and never needs `--force`.
+
+The one thing it does that a plain `git push space main` cannot: a Space
+identifies itself through YAML frontmatter at the top of its `README.md` (the
+Docker SDK declaration and the port), and the GitHub README deliberately has
+none, because GitHub renders frontmatter as a stray table above the title. The
+script concatenates `deploy/space-frontmatter.md` with the real README at
+deploy time, so there is only ever one README to maintain.
+
+To deploy somewhere else, pass the Space id:
 
 ```bash
-# One-time: add the Space as a git remote
-git remote add space https://huggingface.co/spaces/CholatemGiet/fashion-mnist-api
-
-# Every deploy
-git push space main
+bash deploy/push-to-space.sh CholatemGiet/fashion-mnist-frontend
 ```
 
 The Space builds the root `Dockerfile`, which:
@@ -118,8 +127,8 @@ at **build time**:
 VITE_API_BASE=https://cholatemgiet-fashion-mnist-api.hf.space
 ```
 
-Set it as a build-time variable in the Space settings. Use
-`deploy/space-README-frontend-only.md` as that Space's README.
+Set it as a build-time variable in the Space settings, and point
+`deploy/space-frontmatter.md`'s title at that Space before deploying to it.
 
 Understand what you are choosing: two Spaces, two idle timers, and a cold start
 that the dashboard can only wait out. The keep-awake workflow already covers

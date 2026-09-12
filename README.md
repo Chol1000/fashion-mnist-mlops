@@ -95,7 +95,8 @@ fashion-mnist-mlops/
 │
 ├── deploy/
 │   ├── DEPLOYMENT.md                # How it ships, and the sleeping-Space fix
-│   └── space-README*.md             # Hugging Face Space frontmatter templates
+│   ├── push-to-space.sh             # One-command deploy to a Hugging Face Space
+│   └── space-frontmatter.md         # Space README frontmatter, prepended at deploy time
 │
 ├── .github/workflows/
 │   └── keep-spaces-awake.yml        # Scheduled ping + restart so the API never sleeps
@@ -250,9 +251,7 @@ every four seconds (which is itself what wakes the Space), and offers a manual
 restart link if it drags on. It blocks only the first connection of a session.
 
 ```bash
-# Deploy: the Space builds the root Dockerfile
-git remote add space https://huggingface.co/spaces/CholatemGiet/fashion-mnist-api
-git push space main
+bash deploy/push-to-space.sh     # builds the Space README, pushes, triggers a rebuild
 ```
 
 ---
