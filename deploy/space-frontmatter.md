@@ -7,5 +7,5 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: MobileNetV2 garment classifier with a live retraining pipeline
+short_description: MobileNetV2 garment classifier with live retraining
 ---
