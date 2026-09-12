@@ -142,6 +142,22 @@ body {
   fill: rgba(255, 255, 255, 0.06);
 }
 
+/* AntD gives `.ant-upload-drag` `height: 100%`, which assumes the dragger is
+   the only child of a box that was sized for it. Ours sit inside stretched
+   flex columns, where that 100% resolves against the column and the dropzone
+   swallows every pixel of leftover height — 667px in one measured case. Its
+   inner container is `display: table-cell; vertical-align: middle`, so the
+   icon and prompt then sink to the middle of that void and the top two-thirds
+   read as a blank clickable card with nothing in it.
+
+   Content height is what every dragger in this app actually wants.
+   `!important` is required: AntD's cssinjs injects its rule into a runtime
+   <style> tag after this sheet, so a plain rule of equal specificity loses on
+   cascade order — measured, not assumed. */
+.ant-upload-wrapper .ant-upload-drag {
+  height: auto !important;
+}
+
 /* Anything that can't reflow — the EDA figures, the 784-column CSV preview,
    the confusion matrix — scrolls inside its own card rather than widening the
    page. */
